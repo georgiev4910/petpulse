@@ -1,0 +1,19 @@
+{
+  "name": "PetPulse",
+  "short_name": "PetPulse",
+  "description": "Сладко и модерно приложение за грижа за домашните любимци",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#FF8A65",
+  "orientation": "portrait",
+  "lang": "bg",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

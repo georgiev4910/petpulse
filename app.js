@@ -185,6 +185,21 @@ async function saveState() {
 }
 
 async function createPetInFirebase() {
+  // Ensure we have a uid
+  if (!state.uid) {
+    try {
+      const userCred = await auth.signInAnonymously();
+      state.uid = userCred.user.uid;
+      console.log('Re-signed in anonymously:', state.uid);
+    } catch (authErr) {
+      console.error('Auth failed:', authErr);
+      // Continue in local-only mode
+      saveLocalCache();
+      showMainApp();
+      return;
+    }
+  }
+
   const payload = {
     pet: state.pet,
     owners: state.owners,
@@ -218,6 +233,8 @@ async function createPetInFirebase() {
     showMainApp();
   } catch (err) {
     console.error('Create pet failed:', err);
+    // Most common: permission-denied because rules or Anonymous not enabled
+    alert('Не можах да запиша в Firebase.\n\nПровери:\n1. Authentication → Anonymous е Enabled\n2. Firestore е в test mode (или rules позволяват write)\n\nГрешка: ' + (err.code || err.message) + '\n\nПриложението продължава локално.');
     saveLocalCache();
     showMainApp();
   }
@@ -267,66 +284,85 @@ function selectPetType(type) {
 }
 
 async function finishOnboarding() {
-  const name = document.getElementById('pet-name').value.trim() || 'Макс';
-  const breed = document.getElementById('pet-breed').value.trim() || '';
-  const age = document.getElementById('pet-age').value.trim() || '';
-  const weight = parseFloat(document.getElementById('pet-weight').value) || 0;
-  const gender = document.getElementById('pet-gender').value;
-  const type = state.tempType || 'dog';
-
-  state.pet = {
-    name,
-    breed,
-    age,
-    weight,
-    gender,
-    type,
-    emoji: PET_TYPES[type].emoji
-  };
-  state.owners = [{ id: state.uid || '1', name: 'Аз', role: 'owner', color: '#FF8A65' }];
-  state.currentOwner = 'Аз';
-  state.selectedIcon = PET_TYPES[type].emoji;
-  state.onboarded = true;
-  state.foods = []; // start empty, user will add
-
-  // Seed sample health for Max
-  if (type === 'dog' && name === 'Макс') {
-    state.health = [
-      {
-        id: uid(),
-        type: 'vaccine',
-        title: 'Комплексна ваксина (DHPPi)',
-        date: '2025-11-15',
-        nextDate: '2026-11-15',
-        notes: 'Първа годишна ваксина. Без реакция.',
-        vet: 'Д-р Иванова',
-        by: 'Аз',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: uid(),
-        type: 'deworm',
-        title: 'Обезпаразитяване (таблетка)',
-        date: '2026-03-01',
-        nextDate: '2026-06-01',
-        notes: 'Drontal. Прието добре.',
-        by: 'Аз',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: uid(),
-        type: 'vet',
-        title: 'Рутинен преглед',
-        date: '2026-02-20',
-        notes: 'Всичко е наред. Препоръка за повече разходки.',
-        vet: 'Д-р Петров',
-        by: 'Аз',
-        createdAt: new Date().toISOString()
-      }
-    ];
+  const btn = document.querySelector('#onboard-step-2 button');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = 'Запазване...';
   }
 
-  await createPetInFirebase();
+  try {
+    const name = document.getElementById('pet-name').value.trim() || 'Макс';
+    const breed = document.getElementById('pet-breed').value.trim() || '';
+    const age = document.getElementById('pet-age').value.trim() || '';
+    const weight = parseFloat(document.getElementById('pet-weight').value) || 0;
+    const gender = document.getElementById('pet-gender').value;
+    const type = state.tempType || 'dog';
+
+    state.pet = {
+      name,
+      breed,
+      age,
+      weight,
+      gender,
+      type,
+      emoji: PET_TYPES[type].emoji
+    };
+    state.owners = [{ id: state.uid || '1', name: 'Аз', role: 'owner', color: '#FF8A65' }];
+    state.currentOwner = 'Аз';
+    state.selectedIcon = PET_TYPES[type].emoji;
+    state.onboarded = true;
+    state.foods = [];
+
+    // Seed sample health for Max
+    if (type === 'dog' && name === 'Макс') {
+      state.health = [
+        {
+          id: uid(),
+          type: 'vaccine',
+          title: 'Комплексна ваксина (DHPPi)',
+          date: '2025-11-15',
+          nextDate: '2026-11-15',
+          notes: 'Първа годишна ваксина. Без реакция.',
+          vet: 'Д-р Иванова',
+          by: 'Аз',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: uid(),
+          type: 'deworm',
+          title: 'Обезпаразитяване (таблетка)',
+          date: '2026-03-01',
+          nextDate: '2026-06-01',
+          notes: 'Drontal. Прието добре.',
+          by: 'Аз',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: uid(),
+          type: 'vet',
+          title: 'Рутинен преглед',
+          date: '2026-02-20',
+          notes: 'Всичко е наред. Препоръка за повече разходки.',
+          vet: 'Д-р Петров',
+          by: 'Аз',
+          createdAt: new Date().toISOString()
+        }
+      ];
+    }
+
+    await createPetInFirebase();
+  } catch (err) {
+    console.error('finishOnboarding error:', err);
+    alert('Грешка при запазване: ' + (err.message || err) + '\n\nПриложението ще продължи в локален режим.');
+    saveLocalCache();
+    showMainApp();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
 }
 
 // ---------- Navigation ----------

@@ -1,7 +1,32 @@
-// PetPulse - Beta v0.1
-// Local-first PWA for pet care tracking
+// PetPulse - Beta v0.2
+// Firebase-powered pet care tracker PWA
 
-const STORAGE_KEY = 'petpulse_data_v1';
+const firebaseConfig = {
+  apiKey: "AIzaSyCDQ3FAg1kLZyUySZtcMKi9kPIp8S0ARZk",
+  authDomain: "petpulse-2b281.firebaseapp.com",
+  projectId: "petpulse-2b281",
+  storageBucket: "petpulse-2b281.firebasestorage.app",
+  messagingSenderId: "982076073623",
+  appId: "1:982076073623:web:8b90f7a3150a40578e6bd2",
+  measurementId: "G-0YPFKX479W"
+};
+
+// Init Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Enable offline persistence
+db.enablePersistence().catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+  } else if (err.code === 'unimplemented') {
+    console.warn('The current browser does not support offline persistence');
+  }
+});
+
+const LOCAL_PET_ID_KEY = 'petpulse_pet_id';
+const LOCAL_CACHE_KEY = 'petpulse_cache_v2';
 
 const PET_TYPES = {
   dog: { label: 'Куче', emoji: '🐕', icons: ['🐕', '🐶', '🦴', '🐾'] },
@@ -25,45 +50,205 @@ let state = {
   meals: [],
   snacks: [],
   health: [],
+  foods: [],          // NEW: saved foods for quick selection
   currentOwner: 'Аз',
   selectedIcon: '🐕',
-  currentFilter: 'all'
+  currentFilter: 'all',
+  petId: null,
+  uid: null
 };
 
 let modalType = null;
+let unsubscribe = null; // for realtime listener
+let isSaving = false;
 
-// ---------- Persistence ----------
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      state = { ...state, ...parsed };
-    }
-  } catch (e) {
-    console.warn('Load failed', e);
-  }
-}
-
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('Save failed', e);
-  }
-}
-
-// ---------- Init ----------
-function init() {
-  loadState();
+// ---------- Auth & Init ----------
+async function init() {
   document.getElementById('today-date').textContent = formatDate(new Date());
 
-  if (state.onboarded && state.pet) {
-    showMainApp();
-  } else {
-    document.getElementById('onboarding').classList.remove('hide');
-    document.getElementById('main-app').classList.add('hide');
+  try {
+    // Sign in anonymously
+    const userCred = await auth.signInAnonymously();
+    state.uid = userCred.user.uid;
+    console.log('Signed in anonymously:', state.uid);
+
+    // Try to load existing pet
+    const savedPetId = localStorage.getItem(LOCAL_PET_ID_KEY);
+    if (savedPetId) {
+      state.petId = savedPetId;
+      await loadPetFromFirebase(savedPetId);
+    } else {
+      // Check local cache as fallback
+      loadLocalCache();
+      if (state.onboarded && state.pet) {
+        // Migrate local to Firebase
+        await createPetInFirebase();
+      } else {
+        showOnboarding();
+      }
+    }
+  } catch (err) {
+    console.error('Firebase init error:', err);
+    // Fallback to local only
+    loadLocalCache();
+    if (state.onboarded && state.pet) {
+      showMainApp();
+    } else {
+      showOnboarding();
+    }
   }
+}
+
+function showOnboarding() {
+  document.getElementById('onboarding').classList.remove('hide');
+  document.getElementById('main-app').classList.add('hide');
+}
+
+// ---------- Firebase Data ----------
+async function loadPetFromFirebase(petId) {
+  try {
+    const doc = await db.collection('pets').doc(petId).get();
+    if (doc.exists) {
+      const data = doc.data();
+      applyDataToState(data);
+      state.petId = petId;
+      localStorage.setItem(LOCAL_PET_ID_KEY, petId);
+
+      // Realtime listener
+      if (unsubscribe) unsubscribe();
+      unsubscribe = db.collection('pets').doc(petId).onSnapshot((snap) => {
+        if (snap.exists && !isSaving) {
+          applyDataToState(snap.data());
+          renderCurrentScreen();
+        }
+      }, (err) => console.warn('Realtime error:', err));
+
+      showMainApp();
+    } else {
+      console.warn('Pet not found, starting fresh');
+      localStorage.removeItem(LOCAL_PET_ID_KEY);
+      showOnboarding();
+    }
+  } catch (err) {
+    console.error('Load pet error:', err);
+    loadLocalCache();
+    if (state.onboarded) showMainApp();
+    else showOnboarding();
+  }
+}
+
+function applyDataToState(data) {
+  state.onboarded = true;
+  state.pet = data.pet || null;
+  state.owners = data.owners || [];
+  state.walks = data.walks || [];
+  state.meals = data.meals || [];
+  state.snacks = data.snacks || [];
+  state.health = data.health || [];
+  state.foods = data.foods || [];
+  state.selectedIcon = data.selectedIcon || state.pet?.emoji || '🐕';
+  state.currentOwner = data.currentOwner || 'Аз';
+  // Keep local cache updated
+  saveLocalCache();
+}
+
+async function saveState() {
+  if (!state.petId || !state.uid) {
+    saveLocalCache();
+    return;
+  }
+
+  isSaving = true;
+  const payload = {
+    pet: state.pet,
+    owners: state.owners,
+    walks: state.walks,
+    meals: state.meals,
+    snacks: state.snacks,
+    health: state.health,
+    foods: state.foods,
+    selectedIcon: state.selectedIcon,
+    currentOwner: state.currentOwner,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: state.uid
+  };
+
+  try {
+    await db.collection('pets').doc(state.petId).set(payload, { merge: true });
+    saveLocalCache();
+  } catch (err) {
+    console.error('Save to Firebase failed:', err);
+    saveLocalCache(); // at least keep local
+  } finally {
+    isSaving = false;
+  }
+}
+
+async function createPetInFirebase() {
+  const payload = {
+    pet: state.pet,
+    owners: state.owners,
+    walks: state.walks || [],
+    meals: state.meals || [],
+    snacks: state.snacks || [],
+    health: state.health || [],
+    foods: state.foods || [],
+    selectedIcon: state.selectedIcon,
+    currentOwner: state.currentOwner,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdBy: state.uid,
+    ownerUids: [state.uid]
+  };
+
+  try {
+    const docRef = await db.collection('pets').add(payload);
+    state.petId = docRef.id;
+    localStorage.setItem(LOCAL_PET_ID_KEY, docRef.id);
+
+    // Start realtime
+    if (unsubscribe) unsubscribe();
+    unsubscribe = db.collection('pets').doc(state.petId).onSnapshot((snap) => {
+      if (snap.exists && !isSaving) {
+        applyDataToState(snap.data());
+        renderCurrentScreen();
+      }
+    });
+
+    console.log('Pet created in Firebase:', state.petId);
+    showMainApp();
+  } catch (err) {
+    console.error('Create pet failed:', err);
+    saveLocalCache();
+    showMainApp();
+  }
+}
+
+// Local cache helpers
+function saveLocalCache() {
+  try {
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
+      onboarded: state.onboarded,
+      pet: state.pet,
+      owners: state.owners,
+      walks: state.walks,
+      meals: state.meals,
+      snacks: state.snacks,
+      health: state.health,
+      foods: state.foods,
+      selectedIcon: state.selectedIcon,
+      currentOwner: state.currentOwner
+    }));
+  } catch (e) {}
+}
+
+function loadLocalCache() {
+  try {
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      Object.assign(state, parsed);
+    }
+  } catch (e) {}
 }
 
 // ---------- Onboarding ----------
@@ -73,7 +258,6 @@ function selectPetType(type) {
   document.getElementById('onboard-step-2').classList.remove('hide');
   document.getElementById('pet-type-label').textContent = PET_TYPES[type].label.toLowerCase();
   
-  // Pre-fill emoji related defaults if needed
   if (type === 'dog') {
     document.getElementById('pet-name').value = 'Макс';
     document.getElementById('pet-breed').value = 'Джак Ръсел териер';
@@ -82,7 +266,7 @@ function selectPetType(type) {
   }
 }
 
-function finishOnboarding() {
+async function finishOnboarding() {
   const name = document.getElementById('pet-name').value.trim() || 'Макс';
   const breed = document.getElementById('pet-breed').value.trim() || '';
   const age = document.getElementById('pet-age').value.trim() || '';
@@ -99,12 +283,13 @@ function finishOnboarding() {
     type,
     emoji: PET_TYPES[type].emoji
   };
-  state.owners = [{ id: '1', name: 'Аз', role: 'owner', color: '#FF8A65' }];
+  state.owners = [{ id: state.uid || '1', name: 'Аз', role: 'owner', color: '#FF8A65' }];
   state.currentOwner = 'Аз';
   state.selectedIcon = PET_TYPES[type].emoji;
   state.onboarded = true;
+  state.foods = []; // start empty, user will add
 
-  // Seed some sample health for Max
+  // Seed sample health for Max
   if (type === 'dog' && name === 'Макс') {
     state.health = [
       {
@@ -141,8 +326,7 @@ function finishOnboarding() {
     ];
   }
 
-  saveState();
-  showMainApp();
+  await createPetInFirebase();
 }
 
 // ---------- Navigation ----------
@@ -168,6 +352,19 @@ function showScreen(name) {
   if (name === 'health') renderHealth();
   if (name === 'profile') renderProfile();
   if (name === 'home') renderHome();
+}
+
+function renderCurrentScreen() {
+  const active = document.querySelector('.nav-btn.text-coral');
+  if (active) {
+    const screen = active.dataset.screen;
+    if (screen === 'home') renderHome();
+    else if (screen === 'health') renderHealth();
+    else if (screen === 'profile') renderProfile();
+  } else {
+    renderHome();
+  }
+  updateUI();
 }
 
 // ---------- Render ----------
@@ -218,7 +415,7 @@ function renderHome() {
       <div class="flex items-center justify-between bg-cream rounded-xl px-3 py-2.5">
         <div>
           <div class="text-sm font-medium">${m.time} · ${m.amount || ''} ${m.unit || 'г'}</div>
-          <div class="text-xs text-warmgray/50">${m.food || 'Храна'} · ${m.by}</div>
+          <div class="text-xs text-warmgray/50">${m.foodName || m.food || 'Храна'} · ${m.by}</div>
         </div>
         <button onclick="deleteItem('meals','${m.id}')" class="text-warmgray/30 text-lg">×</button>
       </div>
@@ -280,7 +477,7 @@ function renderHome() {
   } else {
     actEl.innerHTML = all.map(a => `
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-peach/60 flex items-center justify-center text-sm">${a.by?.[0] || '?'}</div>
+        <div class="w-8 h-8 rounded-full bg-peach/60 flex items-center justify-center text-sm">${(a.by || '?')[0]}</div>
         <div class="flex-1">
           <div class="text-sm">${a.label}</div>
           <div class="text-xs text-warmgray/50">${a.by} · ${formatRelative(a.createdAt || a.date)}</div>
@@ -346,13 +543,37 @@ function renderProfile() {
   const list = document.getElementById('owners-list');
   list.innerHTML = state.owners.map(o => `
     <div class="flex items-center gap-3 bg-cream rounded-xl px-3 py-2.5">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style="background:${o.color || '#FF8A65'}">${o.name[0]}</div>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium" style="background:${o.color || '#FF8A65'}">${(o.name || '?')[0]}</div>
       <div class="flex-1">
         <div class="text-sm font-medium">${o.name}</div>
         <div class="text-xs text-warmgray/50">${o.role === 'owner' ? 'Собственик' : 'Стопанин'}</div>
       </div>
     </div>
   `).join('');
+
+  // Foods list
+  const foodsList = document.getElementById('foods-list');
+  if (foodsList) {
+    if (!state.foods || state.foods.length === 0) {
+      foodsList.innerHTML = `<p class="text-sm text-warmgray/50 text-center py-2">Все още няма добавени храни</p>`;
+    } else {
+      foodsList.innerHTML = state.foods.map(f => {
+        const remaining = f.remainingGrams != null 
+          ? `<div class="text-xs text-warmgray/50">Остават ~${Math.round(f.remainingGrams)} г ${f.bagSizeKg ? '(' + f.bagSizeKg + ' кг чувал)' : ''}</div>` 
+          : (f.bagSizeKg ? `<div class="text-xs text-warmgray/50">Чувал: ${f.bagSizeKg} кг</div>` : '');
+        return `
+          <div class="flex items-center justify-between bg-cream rounded-xl px-3 py-2.5">
+            <div>
+              <div class="text-sm font-medium">${f.name}${f.brand ? ' · ' + f.brand : ''}</div>
+              <div class="text-xs text-warmgray/50">${f.type === 'dry' ? 'Суха гранула' : f.type === 'wet' ? 'Мокра' : 'Друго'} · порция ${f.defaultPortion || '?'} ${f.unit || 'г'}</div>
+              ${remaining}
+            </div>
+            <button onclick="deleteItem('foods','${f.id}')" class="text-warmgray/30 text-lg">×</button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
 }
 
 // ---------- Modal ----------
@@ -363,7 +584,8 @@ function openAddModal(type) {
     meal: 'Ново хранене',
     snack: 'Нов снак',
     health: 'Здравен запис',
-    owner: 'Добави стопанин'
+    owner: 'Добави стопанин',
+    food: 'Нова храна'
   };
   document.getElementById('modal-title').textContent = titleMap[type] || 'Добави';
   
@@ -391,7 +613,23 @@ function openAddModal(type) {
       </div>
     `;
   } else if (type === 'meal') {
+    // Foods dropdown
+    let foodOptions = '<option value="">— Избери храна —</option>';
+    state.foods.forEach(f => {
+      foodOptions += `<option value="${f.id}" data-portion="${f.defaultPortion || ''}" data-unit="${f.unit || 'г'}">${f.name}${f.brand ? ' (' + f.brand + ')' : ''}</option>`;
+    });
+    foodOptions += '<option value="__new__">+ Добави нова храна...</option>';
+
     body.innerHTML = `
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Храна</label>
+        <select id="m-food-id" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" onchange="onFoodSelect(this)">
+          ${foodOptions}
+        </select>
+      </div>
+      <div id="m-food-custom" class="hide space-y-3">
+        <input id="m-food-name" type="text" placeholder="Име / марка на храната" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+      </div>
       <div>
         <label class="block text-sm font-medium mb-1.5">Час</label>
         <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
@@ -399,17 +637,13 @@ function openAddModal(type) {
       <div>
         <label class="block text-sm font-medium mb-1.5">Количество</label>
         <div class="flex gap-2">
-          <input id="m-amount" type="number" step="1" placeholder="150" class="flex-1 px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+          <input id="m-amount" type="number" step="1" placeholder="65" class="flex-1 px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
           <select id="m-unit" class="w-24 px-3 py-3 rounded-2xl border border-peach/50 bg-white">
             <option value="г">г</option>
             <option value="мл">мл</option>
             <option value="чаши">чаши</option>
           </select>
         </div>
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1.5">Какво яде</label>
-        <input id="m-food" type="text" placeholder="Суха храна, консерва..." class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
       </div>
     `;
   } else if (type === 'snack') {
@@ -461,11 +695,56 @@ function openAddModal(type) {
         <label class="block text-sm font-medium mb-1.5">Име</label>
         <input id="m-name" type="text" placeholder="Име на стопанина" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
       </div>
-      <p class="text-xs text-warmgray/50">В тази бета версия стопаните са локални. По-късно ще добавим покани и синхронизация.</p>
+      <p class="text-xs text-warmgray/50">По-късно ще добавим покани с линк. Засега името е локално към този любимец.</p>
+    `;
+  } else if (type === 'food') {
+    body.innerHTML = `
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Име на храната</label>
+        <input id="m-food-name" type="text" placeholder="напр. Royal Canin Mini Puppy" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Марка (по избор)</label>
+        <input id="m-food-brand" type="text" placeholder="напр. Royal Canin" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1.5">Тип</label>
+        <select id="m-food-type" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white">
+          <option value="dry">Суха гранула</option>
+          <option value="wet">Мокра храна</option>
+          <option value="other">Друго</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Чувал (кг)</label>
+          <input id="m-bag-size" type="number" step="0.1" placeholder="12" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Стандартна порция (г)</label>
+          <input id="m-default-portion" type="number" step="1" placeholder="65" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white" />
+        </div>
+      </div>
     `;
   }
 
   document.getElementById('modal').classList.remove('hide');
+}
+
+function onFoodSelect(select) {
+  const val = select.value;
+  const custom = document.getElementById('m-food-custom');
+  if (val === '__new__') {
+    custom.classList.remove('hide');
+    document.getElementById('m-amount').value = '';
+  } else {
+    custom.classList.add('hide');
+    const opt = select.selectedOptions[0];
+    if (opt && opt.dataset.portion) {
+      document.getElementById('m-amount').value = opt.dataset.portion;
+      document.getElementById('m-unit').value = opt.dataset.unit || 'г';
+    }
+  }
 }
 
 function closeModal() {
@@ -473,7 +752,7 @@ function closeModal() {
   modalType = null;
 }
 
-function saveModal() {
+async function saveModal() {
   const by = state.currentOwner || 'Аз';
   const createdAt = new Date().toISOString();
   const date = todayStr();
@@ -488,8 +767,46 @@ function saveModal() {
     const time = document.getElementById('m-time').value;
     const amount = document.getElementById('m-amount').value;
     const unit = document.getElementById('m-unit').value;
-    const food = document.getElementById('m-food').value;
-    state.meals.push({ id: uid(), date, time, amount, unit, food, by, createdAt });
+    let foodId = document.getElementById('m-food-id').value;
+    let foodName = '';
+
+    if (foodId === '__new__' || !foodId) {
+      foodName = document.getElementById('m-food-name')?.value || 'Храна';
+      // Optionally auto-create food
+      if (foodName && foodName !== 'Храна') {
+        const newFood = {
+          id: uid(),
+          name: foodName,
+          brand: '',
+          type: 'dry',
+          bagSizeKg: null,
+          defaultPortion: amount || null,
+          unit: unit || 'г',
+          remainingGrams: null
+        };
+        state.foods.push(newFood);
+        foodId = newFood.id;
+      }
+    } else {
+      const food = state.foods.find(f => f.id === foodId);
+      foodName = food ? (food.brand ? `${food.name} (${food.brand})` : food.name) : 'Храна';
+      // Subtract from remaining if tracked
+      if (food && food.remainingGrams != null && amount) {
+        food.remainingGrams = Math.max(0, food.remainingGrams - parseFloat(amount));
+      }
+    }
+
+    state.meals.push({
+      id: uid(),
+      date,
+      time,
+      amount,
+      unit,
+      foodId,
+      foodName,
+      by,
+      createdAt
+    });
   } else if (modalType === 'snack') {
     const time = document.getElementById('m-time').value;
     const what = document.getElementById('m-what').value;
@@ -513,26 +830,45 @@ function saveModal() {
         color: colors[state.owners.length % colors.length]
       });
     }
+  } else if (modalType === 'food') {
+    const name = document.getElementById('m-food-name').value.trim();
+    if (!name) return;
+    const brand = document.getElementById('m-food-brand').value.trim();
+    const type = document.getElementById('m-food-type').value;
+    const bagSizeKg = parseFloat(document.getElementById('m-bag-size').value) || null;
+    const defaultPortion = parseFloat(document.getElementById('m-default-portion').value) || null;
+
+    state.foods.push({
+      id: uid(),
+      name,
+      brand,
+      type,
+      bagSizeKg,
+      defaultPortion,
+      unit: 'г',
+      remainingGrams: bagSizeKg ? bagSizeKg * 1000 : null,
+      createdAt
+    });
   }
 
-  saveState();
+  await saveState();
   closeModal();
   renderHome();
   if (modalType === 'health') renderHealth();
-  if (modalType === 'owner') renderProfile();
+  if (modalType === 'owner' || modalType === 'food') renderProfile();
 }
 
 // ---------- Helpers ----------
-function deleteItem(collection, id) {
+async function deleteItem(collection, id) {
   if (!confirm('Изтриване?')) return;
   state[collection] = state[collection].filter(i => i.id !== id);
-  saveState();
+  await saveState();
   renderHome();
   if (collection === 'health') renderHealth();
 }
 
 function editPet() {
-  alert('Редактирането на профила ще бъде добавено в следващата версия. Засега можеш да изтриеш данните и да започнеш наново.');
+  alert('Редактирането на профила ще бъде добавено скоро.');
 }
 
 function selectIcon(emoji) {
@@ -541,14 +877,24 @@ function selectIcon(emoji) {
     btn.classList.remove('ring-2', 'ring-coral');
     btn.classList.add('bg-peach/50');
   });
-  event.target.classList.add('ring-2', 'ring-coral');
-  event.target.classList.remove('bg-peach/50');
+  if (event && event.target) {
+    event.target.classList.add('ring-2', 'ring-coral');
+    event.target.classList.remove('bg-peach/50');
+  }
   saveState();
 }
 
-function resetApp() {
-  if (!confirm('Сигурен ли си? Всички данни ще бъдат изтрити.')) return;
-  localStorage.removeItem(STORAGE_KEY);
+async function resetApp() {
+  if (!confirm('Сигурен ли си? Всички данни за този любимец ще бъдат изтрити.')) return;
+  
+  if (state.petId) {
+    try {
+      await db.collection('pets').doc(state.petId).delete();
+    } catch (e) {}
+  }
+  localStorage.removeItem(LOCAL_PET_ID_KEY);
+  localStorage.removeItem(LOCAL_CACHE_KEY);
+  if (unsubscribe) unsubscribe();
   location.reload();
 }
 

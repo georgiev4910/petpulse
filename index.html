@@ -275,6 +275,17 @@
             <div id="owners-list" class="space-y-2"></div>
           </div>
 
+          <!-- Foods / Храни -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Храни</h3>
+              <button onclick="openAddModal('food')" class="text-xs bg-coral/10 text-coral px-3 py-1 rounded-full font-medium">+ Добави</button>
+            </div>
+            <div id="foods-list" class="space-y-2">
+              <p class="text-sm text-warmgray/50 text-center py-2">Все още няма добавени храни</p>
+            </div>
+          </div>
+
           <div class="card p-5">
             <h3 class="font-semibold mb-3">Икона на приложението</h3>
             <p class="text-xs text-warmgray/50 mb-3">Избери любима (за бъдеща PWA инсталация)</p>
@@ -327,6 +338,11 @@
       </div>
     </div>
   </div>
+
+  <!-- Firebase SDK (compat for easy vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
 
   <script src="app.js"></script>
   <script>

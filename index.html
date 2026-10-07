@@ -63,14 +63,22 @@
 
     <!-- ONBOARDING -->
     <div id="onboarding" class="min-h-screen flex flex-col p-6 fade-in">
-      <div class="flex-1 flex flex-col justify-center items-center text-center pt-8">
-        <div class="text-7xl mb-4">🐾</div>
-        <h1 class="text-3xl font-bold text-warmgray mb-2">PetPulse</h1>
-        <p class="text-warmgray/70 mb-8 text-lg">Пулсът на грижата за любимеца ти</p>
-        
-        <div id="onboard-step-1" class="w-full">
+      <div class="flex-1 flex flex-col pt-6">
+        <!-- Progress indicator -->
+        <div id="onboard-progress" class="flex gap-2 mb-6 justify-center hide">
+          <div class="w-8 h-1.5 rounded-full bg-coral" id="prog-1"></div>
+          <div class="w-8 h-1.5 rounded-full bg-peach" id="prog-2"></div>
+          <div class="w-8 h-1.5 rounded-full bg-peach" id="prog-3"></div>
+          <div class="w-8 h-1.5 rounded-full bg-peach" id="prog-4"></div>
+        </div>
+
+        <!-- STEP 1: Pet type -->
+        <div id="onboard-step-1" class="w-full flex-1 flex flex-col justify-center items-center text-center">
+          <div class="text-7xl mb-4">🐾</div>
+          <h1 class="text-3xl font-bold text-warmgray mb-2">PetPulse</h1>
+          <p class="text-warmgray/70 mb-8 text-lg">Пулсът на грижата за любимеца ти</p>
           <h2 class="text-xl font-semibold mb-6">Какъв е твоят любимец?</h2>
-          <div class="grid grid-cols-2 gap-3 mb-8">
+          <div class="grid grid-cols-2 gap-3 w-full max-w-sm">
             <button onclick="selectPetType('dog')" class="card p-5 flex flex-col items-center gap-2 active:scale-95 transition">
               <span class="text-4xl">🐕</span>
               <span class="font-medium">Куче</span>
@@ -90,13 +98,14 @@
           </div>
         </div>
 
+        <!-- STEP 2: Basic info -->
         <div id="onboard-step-2" class="w-full hide">
-          <h2 class="text-xl font-semibold mb-2">Разкажи ни за <span id="pet-type-label">любимеца</span></h2>
-          <p class="text-sm text-warmgray/60 mb-6">Можеш да промениш всичко по-късно</p>
+          <h2 class="text-xl font-semibold mb-1 text-center">Основна информация</h2>
+          <p class="text-sm text-warmgray/60 mb-6 text-center">За <span id="pet-type-label">любимеца</span></p>
           
           <div class="space-y-4 text-left">
             <div>
-              <label class="block text-sm font-medium mb-1.5">Име</label>
+              <label class="block text-sm font-medium mb-1.5">Име *</label>
               <input id="pet-name" type="text" value="Макс" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
             </div>
             <div>
@@ -105,26 +114,103 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium mb-1.5">Възраст</label>
-                <input id="pet-age" type="text" value="8 месеца" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+                <label class="block text-sm font-medium mb-1.5">Дата на раждане</label>
+                <input id="pet-birthdate" type="date" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1.5">Тегло (кг)</label>
                 <input id="pet-weight" type="number" step="0.1" value="7.2" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
               </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1.5">Пол</label>
-              <select id="pet-gender" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50">
-                <option value="male">Мъжки</option>
-                <option value="female">Женски</option>
-              </select>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium mb-1.5">Пол</label>
+                <select id="pet-gender" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50">
+                  <option value="male">Мъжки</option>
+                  <option value="female">Женски</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1.5">Цвят / окраска</label>
+                <input id="pet-color" type="text" placeholder="бяло-кафяво" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+              </div>
             </div>
           </div>
 
-          <button onclick="finishOnboarding()" class="btn-primary w-full py-4 rounded-2xl font-semibold text-lg mt-8 shadow-lg shadow-coral/20">
-            Започни с PetPulse 🐾
-          </button>
+          <div class="flex gap-3 mt-8">
+            <button onclick="goToStep(1)" class="flex-1 py-3.5 rounded-2xl border border-peach font-medium">Назад</button>
+            <button onclick="goToStep(3)" class="flex-1 py-3.5 rounded-2xl btn-primary font-semibold">Напред</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Identification -->
+        <div id="onboard-step-3" class="w-full hide">
+          <h2 class="text-xl font-semibold mb-1 text-center">Идентификация</h2>
+          <p class="text-sm text-warmgray/60 mb-6 text-center">Паспорт, чип и ветеринар</p>
+          
+          <div class="space-y-4 text-left">
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Номер на паспорт</label>
+              <input id="pet-passport" type="text" placeholder="напр. BG123456789" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Номер на чип</label>
+              <input id="pet-chip" type="text" placeholder="15-цифрен номер" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Дата на чипиране</label>
+              <input id="pet-chip-date" type="date" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Ветеринарна клиника</label>
+              <input id="pet-vet-clinic" type="text" placeholder="Име на клиниката" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Ветеринар (по избор)</label>
+              <input id="pet-vet-name" type="text" placeholder="Д-р ..." class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-8">
+            <button onclick="goToStep(2)" class="flex-1 py-3.5 rounded-2xl border border-peach font-medium">Назад</button>
+            <button onclick="goToStep(4)" class="flex-1 py-3.5 rounded-2xl btn-primary font-semibold">Напред</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: Health & habits -->
+        <div id="onboard-step-4" class="w-full hide">
+          <h2 class="text-xl font-semibold mb-1 text-center">Здраве и навици</h2>
+          <p class="text-sm text-warmgray/60 mb-6 text-center">Можеш да пропуснеш и да добавиш по-късно</p>
+          
+          <div class="space-y-4 text-left">
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Последна ваксина (тип)</label>
+              <input id="pet-last-vaccine" type="text" placeholder="напр. Комплексна DHPPi" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Дата на последна ваксина</label>
+              <input id="pet-last-vaccine-date" type="date" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Алергии / чувствителности</label>
+              <input id="pet-allergies" type="text" placeholder="няма / пилешко / ..." class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Навици / характер</label>
+              <textarea id="pet-habits" rows="3" placeholder="Обича топки, страхува се от гръмотевици, яде само суха храна..." class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50 resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1.5">Други бележки</label>
+              <textarea id="pet-notes" rows="2" placeholder="По избор" class="w-full px-4 py-3 rounded-2xl border border-peach/50 bg-white focus:outline-none focus:ring-2 focus:ring-coral/50 resize-none"></textarea>
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-8">
+            <button onclick="goToStep(3)" class="flex-1 py-3.5 rounded-2xl border border-peach font-medium">Назад</button>
+            <button onclick="finishOnboarding()" id="finish-btn" class="flex-1 py-3.5 rounded-2xl btn-primary font-semibold">
+              Започни с PetPulse 🐾
+            </button>
+          </div>
         </div>
       </div>
     </div>

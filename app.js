@@ -271,20 +271,63 @@ function loadLocalCache() {
 // ---------- Onboarding ----------
 function selectPetType(type) {
   state.tempType = type;
-  document.getElementById('onboard-step-1').classList.add('hide');
-  document.getElementById('onboard-step-2').classList.remove('hide');
   document.getElementById('pet-type-label').textContent = PET_TYPES[type].label.toLowerCase();
   
+  // Prefill for Max example
   if (type === 'dog') {
     document.getElementById('pet-name').value = 'Макс';
     document.getElementById('pet-breed').value = 'Джак Ръсел териер';
-    document.getElementById('pet-age').value = '8 месеца';
     document.getElementById('pet-weight').value = '7.2';
+    const bd = new Date();
+    bd.setMonth(bd.getMonth() - 8);
+    document.getElementById('pet-birthdate').value = bd.toISOString().slice(0, 10);
+  }
+  
+  goToStep(2);
+}
+
+function goToStep(step) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`onboard-step-${i}`);
+    if (el) el.classList.add('hide');
+  }
+  
+  const progress = document.getElementById('onboard-progress');
+  if (progress) {
+    if (step === 1) {
+      progress.classList.add('hide');
+    } else {
+      progress.classList.remove('hide');
+      for (let i = 1; i <= 4; i++) {
+        const p = document.getElementById(`prog-${i}`);
+        if (p) {
+          p.classList.toggle('bg-coral', i <= step);
+          p.classList.toggle('bg-peach', i > step);
+        }
+      }
+    }
+  }
+  
+  const target = document.getElementById(`onboard-step-${step}`);
+  if (target) {
+    target.classList.remove('hide');
+    target.classList.add('fade-in');
   }
 }
 
+function calcAgeFromBirthdate(birthdateStr) {
+  if (!birthdateStr) return '';
+  const birth = new Date(birthdateStr);
+  const now = new Date();
+  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if (months < 12) return `${months} месеца`;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  return rem > 0 ? `${years} г. и ${rem} мес.` : `${years} години`;
+}
+
 async function finishOnboarding() {
-  const btn = document.querySelector('#onboard-step-2 button');
+  const btn = document.getElementById('finish-btn');
   const originalText = btn ? btn.innerHTML : '';
   if (btn) {
     btn.disabled = true;
@@ -294,28 +337,68 @@ async function finishOnboarding() {
   try {
     const name = document.getElementById('pet-name').value.trim() || 'Макс';
     const breed = document.getElementById('pet-breed').value.trim() || '';
-    const age = document.getElementById('pet-age').value.trim() || '';
+    const birthdate = document.getElementById('pet-birthdate').value || '';
     const weight = parseFloat(document.getElementById('pet-weight').value) || 0;
     const gender = document.getElementById('pet-gender').value;
+    const color = document.getElementById('pet-color')?.value.trim() || '';
     const type = state.tempType || 'dog';
+
+    const passport = document.getElementById('pet-passport')?.value.trim() || '';
+    const chip = document.getElementById('pet-chip')?.value.trim() || '';
+    const chipDate = document.getElementById('pet-chip-date')?.value || '';
+    const vetClinic = document.getElementById('pet-vet-clinic')?.value.trim() || '';
+    const vetName = document.getElementById('pet-vet-name')?.value.trim() || '';
+
+    const lastVaccine = document.getElementById('pet-last-vaccine')?.value.trim() || '';
+    const lastVaccineDate = document.getElementById('pet-last-vaccine-date')?.value || '';
+    const allergies = document.getElementById('pet-allergies')?.value.trim() || '';
+    const habits = document.getElementById('pet-habits')?.value.trim() || '';
+    const notes = document.getElementById('pet-notes')?.value.trim() || '';
+
+    const age = calcAgeFromBirthdate(birthdate);
 
     state.pet = {
       name,
       breed,
+      birthdate,
       age,
       weight,
       gender,
+      color,
       type,
-      emoji: PET_TYPES[type].emoji
+      emoji: PET_TYPES[type].emoji,
+      passport,
+      chip,
+      chipDate,
+      vetClinic,
+      vetName,
+      allergies,
+      habits,
+      notes
     };
+
     state.owners = [{ id: state.uid || '1', name: 'Аз', role: 'owner', color: '#FF8A65' }];
     state.currentOwner = 'Аз';
     state.selectedIcon = PET_TYPES[type].emoji;
     state.onboarded = true;
     state.foods = [];
+    state.health = [];
 
-    // Seed sample health for Max
-    if (type === 'dog' && name === 'Макс') {
+    // Seed from the quick health fields if provided
+    if (lastVaccine) {
+      state.health.push({
+        id: uid(),
+        type: 'vaccine',
+        title: lastVaccine,
+        date: lastVaccineDate || todayStr(),
+        notes: 'Добавено при регистрация',
+        by: 'Аз',
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // Default sample for Max if nothing entered
+    if (type === 'dog' && name === 'Макс' && state.health.length === 0) {
       state.health = [
         {
           id: uid(),
@@ -335,16 +418,6 @@ async function finishOnboarding() {
           date: '2026-03-01',
           nextDate: '2026-06-01',
           notes: 'Drontal. Прието добре.',
-          by: 'Аз',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: uid(),
-          type: 'vet',
-          title: 'Рутинен преглед',
-          date: '2026-02-20',
-          notes: 'Всичко е наред. Препоръка за повече разходки.',
-          vet: 'Д-р Петров',
           by: 'Аз',
           createdAt: new Date().toISOString()
         }
@@ -407,8 +480,11 @@ function renderCurrentScreen() {
 function updateUI() {
   if (!state.pet) return;
   const p = state.pet;
+  // Recalculate age if birthdate exists
+  if (p.birthdate) p.age = calcAgeFromBirthdate(p.birthdate);
+
   document.getElementById('header-pet-name').textContent = p.name;
-  document.getElementById('header-pet-info').textContent = `${p.breed || PET_TYPES[p.type]?.label || ''} · ${p.age}`;
+  document.getElementById('header-pet-info').textContent = `${p.breed || PET_TYPES[p.type]?.label || ''} · ${p.age || ''}`;
   document.getElementById('pet-avatar').textContent = p.emoji || '🐾';
   
   document.getElementById('profile-name').textContent = p.name;

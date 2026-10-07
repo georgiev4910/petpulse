@@ -1,5 +1,3 @@
-// ==================== FIREBASE CONFIG ====================
-// Използваме същите надеждни ключове от твоя акаунт
 const firebaseConfig = {
   apiKey: "AIzaSyCDQ3FAg1kLZyUySZtcMKi9kPIp8S0ARZk",
   authDomain: "petpulse-2b281.firebaseapp.com",
@@ -14,14 +12,12 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// ==================== STATE ====================
 let currentUser = null;
 let currentPetId = null;
-let petData = { name: 'Макс', type: 'dog', code: '', foodBagKg: 3, walks: [], meals: [], health: [] };
+let petData = { name: 'Макс', type: 'dog', code: '', foodBagKg: 3, trackFood: true, walks: [], meals: [], health: [], usersMeta: {} };
 let unsubPet = null;
 let activeModalType = null;
 
-// ==================== INIT ====================
 auth.onAuthStateChanged(async (user) => {
   const splash = document.getElementById('splash');
   if (splash) splash.classList.add('hidden');
@@ -37,23 +33,18 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// ==================== AUTH ====================
 async function handleLogin() {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
   if (!email || !password) { alert('Попълни имейл и парола'); return; }
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
-  } catch (e) { alert('Грешка при вход: ' + e.message); }
+  try { await auth.signInWithEmailAndPassword(email, password); } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 async function handleRegister() {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
   if (!email || !password) { alert('Попълни имейл и парола'); return; }
-  try {
-    await auth.createUserWithEmailAndPassword(email, password);
-  } catch (e) { alert('Грешка при регистрация: ' + e.message); }
+  try { await auth.createUserWithEmailAndPassword(email, password); } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 function logout() {
@@ -61,20 +52,13 @@ function logout() {
   auth.signOut();
 }
 
-// ==================== PET & SHARING LOGIC ====================
 async function checkUserPet() {
   try {
-    // Check if user has linked pet in localStorage or Firestore user doc
     const localPetId = localStorage.getItem('petpulse_active_pet');
     if (localPetId) {
       const doc = await db.collection('pets').doc(localPetId).get();
-      if (doc.exists) {
-        currentPetId = localPetId;
-        startPetListener();
-        return;
-      }
+      if (doc.exists) { currentPetId = localPetId; startPetListener(); return; }
     }
-    // Otherwise check if any pet contains user uid in members
     const snap = await db.collection('pets').where('members', 'array-contains', currentUser.uid).limit(1).get();
     if (!snap.empty) {
       currentPetId = snap.docs[0].id;
@@ -82,43 +66,32 @@ async function checkUserPet() {
       startPetListener();
       return;
     }
-    // No pet found -> show setup / create / join
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('setup-screen').classList.remove('hidden');
   } catch (e) {
-    console.error(e);
     document.getElementById('setup-screen').classList.remove('hidden');
   }
 }
 
 async function createPet() {
   const name = document.getElementById('new-pet-name').value.trim() || 'Макс';
-  const type = document.getElementById('new-pet-type').value;
   const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
   const newPet = {
-    name,
-    type,
-    code,
-    foodBagKg: 3,
-    members: [currentUser.uid],
-    walks: [],
-    meals: [],
-    health: []
+    name, type: 'dog', code, foodBagKg: 3, trackFood: true,
+    members: [currentUser.uid], walks: [], meals: [], health: [], usersMeta: {}
   };
-
   try {
     const ref = await db.collection('pets').add(newPet);
     currentPetId = ref.id;
     localStorage.setItem('petpulse_active_pet', currentPetId);
     document.getElementById('setup-screen').classList.add('hidden');
     startPetListener();
-  } catch (e) { alert('Грешка при създаване: ' + e.message); }
+  } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 async function joinWithCode() {
   const code = document.getElementById('invite-code-input').value.trim().toUpperCase();
-  if (!code) { alert('Въведи код за покана'); return; }
+  if (!code) { alert('Въведи код'); return; }
   try {
     const snap = await db.collection('pets').where('code', '==', code).limit(1).get();
     if (snap.empty) { alert('Невалиден код'); return; }
@@ -133,7 +106,7 @@ async function joinWithCode() {
     localStorage.setItem('petpulse_active_pet', currentPetId);
     document.getElementById('setup-screen').classList.add('hidden');
     startPetListener();
-  } catch (e) { alert('Грешка при присъединяване: ' + e.message); }
+  } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 function startPetListener() {
@@ -150,55 +123,66 @@ function startPetListener() {
   });
 }
 
-// ==================== RENDERING ====================
 function renderApp() {
-  document.getElementById('pet-title-name').textContent = petData.name;
-  document.getElementById('pet-avatar').textContent = petData.type === 'cat' ? '🐈' : '🐕';
-  document.getElementById('share-code-display').value = petData.code || '------';
+  document.getElementById('pet-title-name').textContent = petData.name || 'Макс';
+  document.getElementById('share-code-display').value = petData.code || '';
+  
+  // Fill settings fields
+  document.getElementById('pet-birthdate').value = petData.birthdate || '';
+  document.getElementById('pet-passport').value = petData.passport || '';
+  document.getElementById('pet-chip').value = petData.chip || '';
+  document.getElementById('food-brand-model').value = petData.foodBrandModel || '';
   document.getElementById('food-bag-kg').value = petData.foodBagKg || 3;
+  document.getElementById('toggle-food-tracking').checked = petData.trackFood !== false;
+
+  // My profile settings
+  const meta = (petData.usersMeta || {})[currentUser.uid] || { name: currentUser.email.split('@')[0], avatar: '👤', color: '#0ea5e9' };
+  document.getElementById('my-name-input').value = meta.name;
+  document.getElementById('my-avatar-input').value = meta.avatar;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   document.getElementById('today-date-label').textContent = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  // Walks & Meals today stats
   const walksToday = (petData.walks || []).filter(w => w.date === todayStr);
   const mealsToday = (petData.meals || []).filter(m => m.date === todayStr);
 
   document.getElementById('stat-walks').textContent = walksToday.length;
   document.getElementById('stat-meals').textContent = mealsToday.length;
 
-  // Food remaining calculation
-  let totalEatenGrams = 0;
-  (petData.meals || []).forEach(m => {
-    if (m.unit === 'г' && m.amount) totalEatenGrams += Number(m.amount);
-  });
-  const bagTotalGrams = (petData.foodBagKg || 3) * 1000;
-  const remainingKg = Math.max(0, (bagTotalGrams - totalEatenGrams) / 1000).toFixed(1);
-  document.getElementById('stat-food-bag').textContent = `${remainingKg} кг`;
+  if (petData.trackFood !== false) {
+    let totalEaten = 0;
+    (petData.meals || []).forEach(m => { if (m.amount) totalEaten += Number(m.amount); });
+    const bagGrams = (petData.foodBagKg || 3) * 1000;
+    const remKg = Math.max(0, (bagGrams - totalEaten) / 1000).toFixed(1);
+    document.getElementById('stat-food-bag').textContent = `${remKg} кг`;
+  } else {
+    document.getElementById('stat-food-bag').textContent = 'Изкл.';
+  }
 
-  // Today activity list stream
   const todayList = [
     ...(petData.walks || []).filter(w => w.date === todayStr).map(w => ({ ...w, type: 'walk', label: `Разходка ${w.duration || ''} мин` })),
-    ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({ ...m, type: 'meal', label: `Хранене ${m.amount || ''} ${m.unit || 'г'}` })),
+    ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({ ...m, type: 'meal', label: `Хранене ${m.amount || ''} г` })),
     ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: `Здраве: ${h.title}` }))
   ].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
   const listEl = document.getElementById('today-activity-list');
   if (todayList.length === 0) {
-    listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Няма записани активности за днес</p>`;
+    listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Няма записани активности</p>`;
   } else {
-    listEl.innerHTML = todayList.map(item => `
-      <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3">
-        <div>
-          <div class="text-sm font-semibold">${item.label}</div>
-          <div class="text-[11px] text-slate-400">${item.time || ''} · Стопанин: <span class="text-sky-500 font-medium">${item.authorName || 'Партньор'}</span></div>
+    listEl.innerHTML = todayList.map(item => {
+      const uMeta = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤', color: '#0ea5e9' };
+      return `
+        <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border-l-4" style="border-color: ${uMeta.color}">
+          <div>
+            <div class="text-sm font-semibold">${item.label}</div>
+            <div class="text-[11px] text-slate-400">${item.time || ''} · <span class="font-medium text-slate-600 dark:text-slate-300">${uMeta.avatar} ${uMeta.name}</span></div>
+          </div>
+          <button onclick="deleteItem('${item.type}', '${item.id}')" class="text-slate-400 hover:text-red-500 text-sm p-1">✕</button>
         </div>
-        <button onclick="deleteItem('${item.type}', '${item.id}')" class="text-slate-400 hover:text-red-500 text-sm p-1">✕</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
-  // Health records list
   const healthEl = document.getElementById('health-records-list');
   const healthItems = petData.health || [];
   if (healthItems.length === 0) {
@@ -207,7 +191,7 @@ function renderApp() {
     healthEl.innerHTML = healthItems.map(h => `
       <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-1">
         <div class="flex items-center justify-between">
-          <h4 class="font-bold text-sm">${h.title}</h4>
+          <h4 class="font-bold text-sm">${h.title} ${h.productName ? '· ' + h.productName : ''}</h4>
           <button onclick="deleteItem('health', '${h.id}')" class="text-slate-400 hover:text-red-500 text-sm">✕</button>
         </div>
         <p class="text-xs text-slate-400">Дата: ${h.date} ${h.nextDate ? '· Следваща: ' + h.nextDate : ''}</p>
@@ -217,7 +201,46 @@ function renderApp() {
   }
 }
 
-// ==================== MODALS & ACTIONS ====================
+async function saveMyProfile() {
+  if (!currentPetId) return;
+  const name = document.getElementById('my-name-input').value.trim() || 'Стопанин';
+  const avatar = document.getElementById('my-avatar-input').value.trim() || '👤';
+  const currentMeta = (petData.usersMeta || {})[currentUser.uid] || { color: '#0ea5e9' };
+  
+  if (!petData.usersMeta) petData.usersMeta = {};
+  petData.usersMeta[currentUser.uid] = { name, avatar, color: currentMeta.color };
+
+  await db.collection('pets').doc(currentPetId).update({ usersMeta: petData.usersMeta });
+}
+
+async function setMyColor(colorHex) {
+  if (!currentPetId) return;
+  if (!petData.usersMeta) petData.usersMeta = {};
+  const currentMeta = petData.usersMeta[currentUser.uid] || { name: currentUser.email.split('@')[0], avatar: '👤' };
+  petData.usersMeta[currentUser.uid] = { ...currentMeta, color: colorHex };
+
+  await db.collection('pets').doc(currentPetId).update({ usersMeta: petData.usersMeta });
+}
+
+async function savePetDetails() {
+  if (!currentPetId) return;
+  petData.birthdate = document.getElementById('pet-birthdate').value;
+  petData.passport = document.getElementById('pet-passport').value.trim();
+  petData.chip = document.getElementById('pet-chip').value.trim();
+  petData.foodBrandModel = document.getElementById('food-brand-model').value.trim();
+  petData.foodBagKg = parseFloat(document.getElementById('food-bag-kg').value) || 3;
+  petData.trackFood = document.getElementById('toggle-food-tracking').checked;
+
+  await db.collection('pets').doc(currentPetId).update({
+    birthdate: petData.birthdate,
+    passport: petData.passport,
+    chip: petData.chip,
+    foodBrandModel: petData.foodBrandModel,
+    foodBagKg: petData.foodBagKg,
+    trackFood: petData.trackFood
+  });
+}
+
 function openModal(type) {
   activeModalType = type;
   const titleMap = { walk: 'Нова разходка', meal: 'Ново хранене', health: 'Здравен запис' };
@@ -235,13 +258,17 @@ function openModal(type) {
     body.innerHTML = `
       <div><label class="block text-xs text-slate-400 mb-1">Час</label><input id="m-time" type="time" value="${timeVal}" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs text-slate-400 mb-1">Количество (грама)</label><input id="m-amount" type="number" placeholder="70" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <input type="hidden" id="m-unit" value="г">
     `;
   } else if (type === 'health') {
+    // Find last deworming or vaccine product for quick reuse
+    const lastHealth = (petData.health || [])[0];
+    const lastProduct = lastHealth ? lastHealth.productName || '' : '';
+
     body.innerHTML = `
-      <div><label class="block text-xs text-slate-400 mb-1">Заглавие</label><input id="m-title" type="text" placeholder="напр. Ваксина / Обезпаразитяване" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Тип / Заглавие</label><input id="m-title" type="text" placeholder="напр. Обезпаразитяване / Ваксина" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Име на лекарство / продукт</label><input id="m-product" type="text" value="${lastProduct}" placeholder="напр. NexGard / Drontal" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs text-slate-400 mb-1">Дата</label><input id="m-date" type="date" value="${new Date().toISOString().slice(0,10)}" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs text-slate-400 mb-1">Следваща дата (предупреждение)</label><input id="m-next" type="date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs text-slate-400 mb-1">Следваща дата</label><input id="m-next" type="date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs text-slate-400 mb-1">Бележки</label><textarea id="m-notes" rows="2" placeholder="Допълнителна информация..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea></div>
     `;
   }
@@ -256,8 +283,7 @@ function closeModal() {
 
 async function saveModal() {
   if (!currentPetId) return;
-  const authorName = currentUser.email ? currentUser.email.split('@')[0] : 'Партньор';
-  const newItem = { id: 'item_' + Date.now(), createdAt: new Date().toISOString(), authorName, date: new Date().toISOString().slice(0, 10) };
+  const newItem = { id: 'item_' + Date.now(), createdAt: new Date().toISOString(), authorUid: currentUser.uid, date: new Date().toISOString().slice(0, 10) };
 
   if (activeModalType === 'walk') {
     newItem.time = document.getElementById('m-time').value;
@@ -266,10 +292,10 @@ async function saveModal() {
   } else if (activeModalType === 'meal') {
     newItem.time = document.getElementById('m-time').value;
     newItem.amount = document.getElementById('m-amount').value;
-    newItem.unit = document.getElementById('m-unit').value;
     petData.meals = [newItem, ...(petData.meals || [])];
   } else if (activeModalType === 'health') {
     newItem.title = document.getElementById('m-title').value || 'Здравен запис';
+    newItem.productName = document.getElementById('m-product').value.trim();
     newItem.date = document.getElementById('m-date').value;
     newItem.nextDate = document.getElementById('m-next').value;
     newItem.notes = document.getElementById('m-notes').value;
@@ -283,11 +309,11 @@ async function saveModal() {
       health: petData.health || []
     });
     closeModal();
-  } catch (e) { alert('Грешка при запис: ' + e.message); }
+  } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 async function deleteItem(type, id) {
-  if (!confirm('Сигурен ли си, че искаш да изтриеш този запис?')) return;
+  if (!confirm('Сигурен ли си?')) return;
   if (type === 'walk') petData.walks = petData.walks.filter(w => w.id !== id);
   if (type === 'meal') petData.meals = petData.meals.filter(m => m.id !== id);
   if (type === 'health') petData.health = petData.health.filter(h => h.id !== id);
@@ -298,19 +324,9 @@ async function deleteItem(type, id) {
       meals: petData.meals || [],
       health: petData.health || []
     });
-  } catch (e) { alert('Грешка при изтриване: ' + e.message); }
+  } catch (e) { alert('Грешка: ' + e.message); }
 }
 
-async function updateFoodBag() {
-  if (!currentPetId) return;
-  const val = parseFloat(document.getElementById('food-bag-kg').value) || 3;
-  petData.foodBagKg = val;
-  try {
-    await db.collection('pets').doc(currentPetId).update({ foodBagKg: val });
-  } catch (e) {}
-}
-
-// ==================== NAVIGATION & UTILS ====================
 function switchTab(tabId) {
   ['home', 'health', 'settings'].forEach(t => {
     const el = document.getElementById(`tab-${t}`);
@@ -327,14 +343,9 @@ function copyShareCode() {
   const input = document.getElementById('share-code-display');
   input.select();
   navigator.clipboard.writeText(input.value);
-  alert('Кодът е копиран! Прати го на Нина.');
+  alert('Кодът е копиран!');
 }
 
-function toggleDarkMode() {
-  document.documentElement.classList.toggle('dark');
-}
-
-// PWA Service Worker Register
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error', err));
 }

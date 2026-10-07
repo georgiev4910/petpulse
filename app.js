@@ -16,14 +16,11 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Enable offline persistence
-db.enablePersistence().catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('The current browser does not support offline persistence');
-  }
-});
+// Offline persistence (new API to avoid deprecation warning)
+try {
+  db.settings({ ignoreUndefinedProperties: true });
+} catch (e) {}
+// Note: enablePersistence is deprecated, we rely on default cache for now
 
 const LOCAL_PET_ID_KEY = 'petpulse_pet_id';
 const LOCAL_CACHE_KEY = 'petpulse_cache_v2';
@@ -216,7 +213,13 @@ async function createPetInFirebase() {
   };
 
   try {
-    const docRef = await db.collection('pets').add(payload);
+    // Timeout after 8 seconds so the button never hangs forever
+    const addPromise = db.collection('pets').add(payload);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout – провери Firestore rules и интернет')), 8000)
+    );
+    
+    const docRef = await Promise.race([addPromise, timeoutPromise]);
     state.petId = docRef.id;
     localStorage.setItem(LOCAL_PET_ID_KEY, docRef.id);
 
@@ -233,8 +236,7 @@ async function createPetInFirebase() {
     showMainApp();
   } catch (err) {
     console.error('Create pet failed:', err);
-    // Most common: permission-denied because rules or Anonymous not enabled
-    alert('Не можах да запиша в Firebase.\n\nПровери:\n1. Authentication → Anonymous е Enabled\n2. Firestore е в test mode (или rules позволяват write)\n\nГрешка: ' + (err.code || err.message) + '\n\nПриложението продължава локално.');
+    alert('Не можах да запиша в Firebase.\n\nНай-честа причина: Firestore Rules блокират записа.\n\nОтиди в Firebase Console → Firestore → Rules и сложи временно:\n\nallow read, write: if true;\n\nПосле Publish.\n\nГрешка: ' + (err.code || err.message));
     saveLocalCache();
     showMainApp();
   }

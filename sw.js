@@ -1,4 +1,4 @@
-const CACHE_NAME = 'petpulse-v1';
+const CACHE_NAME = 'petpulse-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -25,10 +25,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((response) => {
-        // Optionally cache new requests
-        return response;
-      }).catch(() => cached);
+      return cached || fetch(event.request).catch(() => caches.match('./index.html'));
     })
   );
 });

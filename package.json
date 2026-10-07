@@ -1,10 +1,9 @@
 {
   "name": "petpulse",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "PetPulse - Cute & modern pet care tracker PWA",
+  "description": "PetPulse PWA",
   "scripts": {
-    "dev": "npx --yes serve . -p 3000",
     "start": "npx --yes serve . -p 3000"
   }
 }

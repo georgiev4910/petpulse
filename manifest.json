@@ -1,13 +1,12 @@
 {
   "name": "PetPulse",
   "short_name": "PetPulse",
-  "description": "Сладко и модерно приложение за грижа за домашните любимци",
+  "description": "Споделен интелигентен тракер за домашни любимци",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#FFF8F0",
-  "theme_color": "#FF8A65",
-  "orientation": "portrait",
-  "lang": "bg",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>",

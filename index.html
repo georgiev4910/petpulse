@@ -9,350 +9,423 @@
   <link rel="manifest" href="manifest.json">
   <title>PetPulse</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' }
-          }
-        }
-      }
-    }
-  </script>
+  <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{500:'#0ea5e9',600:'#0284c7'}}}}}</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; animation: fade .2s ease; }
-    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-    .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
-    .drawer-open { transform: translateX(0) !important; }
-    .drawer-backdrop-open { opacity: 1 !important; pointer-events: auto !important; }
+    body{font-family:Inter,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+    .tab-pane{display:none}.tab-pane.active{display:block;animation:fade .2s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .safe-b{padding-bottom:env(safe-area-inset-bottom,0)}
+    .drawer-open{transform:translateX(0)!important}
+    .drawer-bg-open{opacity:1!important;pointer-events:auto!important}
   </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-full antialiased">
 
-  <!-- SPLASH -->
-  <div id="splash" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-sky-500 to-blue-700 text-white">
-    <div class="text-5xl mb-3">🐾</div>
-    <h1 class="text-2xl font-extrabold tracking-tight">PetPulse</h1>
-    <div class="mt-8 w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-  </div>
+<!-- SPLASH -->
+<div id="splash" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-sky-500 to-blue-700 text-white">
+  <div class="text-5xl mb-3">🐾</div>
+  <h1 class="text-2xl font-extrabold">PetPulse</h1>
+  <div class="mt-8 w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+</div>
 
-  <!-- AUTH -->
-  <div id="auth-screen" class="hidden min-h-screen flex items-center justify-center p-5">
-    <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-7 border border-slate-200/70 dark:border-slate-800">
-      <div class="text-center mb-7">
-        <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-600 text-white text-2xl items-center justify-center shadow-lg shadow-sky-500/30 mb-3">🐾</div>
-        <h1 class="text-xl font-bold">PetPulse</h1>
-        <p class="text-sm text-slate-500 mt-1">Споделен дневник за любимеца</p>
+<!-- AUTH -->
+<div id="auth-screen" class="hidden min-h-screen flex items-center justify-center p-5">
+  <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-7 border border-slate-200/70 dark:border-slate-800">
+    <div class="text-center mb-7">
+      <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-600 text-white text-2xl items-center justify-center shadow-lg shadow-sky-500/30 mb-3">🐾</div>
+      <h1 class="text-xl font-bold">PetPulse</h1>
+      <p class="text-sm text-slate-500 mt-1">Споделен дневник за любимците</p>
+    </div>
+    <div class="space-y-3.5">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Имейл</label>
+        <input type="email" id="auth-email" placeholder="name@example.com" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-500">
       </div>
-      <div class="space-y-3.5">
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Имейл</label>
-          <input type="email" id="auth-email" placeholder="name@example.com" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-500">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Парола</label>
-          <input type="password" id="auth-password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-500">
-        </div>
-        <button onclick="handleLogin()" class="w-full py-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm shadow-lg shadow-sky-500/25 transition">Влез</button>
-        <button onclick="handleRegister()" class="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition">Създай акаунт</button>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Парола</label>
+        <input type="password" id="auth-password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-500">
       </div>
+      <button onclick="handleLogin()" class="w-full py-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm shadow-lg shadow-sky-500/25">Влез</button>
+      <button onclick="handleRegister()" class="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm">Създай акаунт</button>
     </div>
   </div>
+</div>
 
-  <!-- SETUP -->
-  <div id="setup-screen" class="hidden min-h-screen flex items-center justify-center p-5">
-    <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-7 border border-slate-200/70 dark:border-slate-800 space-y-5">
-      
-      <div id="setup-step-profile" class="space-y-4">
-        <div class="text-center">
-          <h2 class="text-lg font-bold">Твоят профил</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Как да те виждат другите стопани</p>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Име / прякор</label>
-          <input type="text" id="setup-my-name" placeholder="напр. Нина" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1.5">Аватар</label>
-          <div class="flex gap-2 justify-center" id="setup-avatar-picker">
-            <button type="button" onclick="selectSetupAvatar('👨')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">👨</button>
-            <button type="button" onclick="selectSetupAvatar('👩')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">👩</button>
-            <button type="button" onclick="selectSetupAvatar('🧑')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">🧑</button>
-            <button type="button" onclick="selectSetupAvatar('🙂')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">🙂</button>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1.5">Цвят на активностите ти</label>
-          <div class="flex gap-3 justify-center">
-            <button onclick="selectSetupColor('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500 ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-900"></button>
-            <button onclick="selectSetupColor('#10b981')" class="w-8 h-8 rounded-full bg-emerald-500"></button>
-            <button onclick="selectSetupColor('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
-            <button onclick="selectSetupColor('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
-          </div>
-        </div>
-        <button onclick="proceedToPetSetup()" class="w-full py-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm shadow-lg shadow-sky-500/25">Продължи</button>
+<!-- SETUP -->
+<div id="setup-screen" class="hidden min-h-screen flex items-center justify-center p-5">
+  <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-7 border border-slate-200/70 dark:border-slate-800 space-y-5">
+    <div id="setup-step-profile" class="space-y-4">
+      <div class="text-center">
+        <h2 class="text-lg font-bold">Твоят профил</h2>
+        <p class="text-xs text-slate-500">Как да те виждат другите стопани</p>
       </div>
-
-      <div id="setup-step-pet" class="hidden space-y-4">
-        <div class="text-center">
-          <h2 class="text-lg font-bold">Любимец</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Създай нов или се присъедини с код</p>
-        </div>
-
-        <div class="p-4 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
-          <p class="text-sm font-semibold text-sky-700 dark:text-sky-300">Нов любимец</p>
-          <input type="text" id="new-pet-name" placeholder="Име (напр. Макс)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-          <select id="new-pet-type" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-            <option value="dog">Куче</option>
-            <option value="cat">Котка</option>
-            <option value="other">Друго</option>
-          </select>
-          <button onclick="createPet()" class="w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm">Създай</button>
-        </div>
-
-        <div class="relative flex items-center py-1">
-          <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-          <span class="px-3 text-[11px] text-slate-400 font-semibold uppercase">или</span>
-          <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-        </div>
-
-        <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-          <p class="text-sm font-semibold">Присъедини се с код</p>
-          <input type="text" id="invite-code-input" placeholder="КОД ОТ ПАРТНЬОРА" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none uppercase font-mono tracking-widest text-center">
-          <button onclick="joinWithCode()" class="w-full py-3 rounded-xl border-2 border-sky-500 text-sky-600 dark:text-sky-400 font-bold text-sm hover:bg-sky-50 dark:hover:bg-sky-950/30">Присъедини се</button>
-        </div>
-
-        <button onclick="logout()" class="w-full text-center text-xs text-red-500 pt-1">Изход</button>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Име / прякор</label>
+        <input type="text" id="setup-my-name" placeholder="напр. Нина" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none">
       </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Аватар</label>
+        <div class="flex gap-2 justify-center">
+          <button type="button" onclick="selectSetupAvatar('👨')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">👨</button>
+          <button type="button" onclick="selectSetupAvatar('👩')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">👩</button>
+          <button type="button" onclick="selectSetupAvatar('🧑')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">🧑</button>
+          <button type="button" onclick="selectSetupAvatar('🙂')" class="setup-av w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-xl flex items-center justify-center border-2 border-transparent">🙂</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Цвят</label>
+        <div class="flex gap-3 justify-center">
+          <button onclick="selectSetupColor('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500 ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-900"></button>
+          <button onclick="selectSetupColor('#10b981')" class="w-8 h-8 rounded-full bg-emerald-500"></button>
+          <button onclick="selectSetupColor('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
+          <button onclick="selectSetupColor('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
+        </div>
+      </div>
+      <button onclick="proceedToPetSetup()" class="w-full py-3.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm shadow-lg shadow-sky-500/25">Продължи</button>
+    </div>
+
+    <div id="setup-step-pet" class="hidden space-y-4">
+      <div class="text-center">
+        <h2 class="text-lg font-bold">Любимец</h2>
+        <p class="text-xs text-slate-500">Създай нов или се присъедини с код</p>
+      </div>
+      <div class="p-4 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
+        <p class="text-sm font-semibold text-sky-700 dark:text-sky-300">Нов любимец</p>
+        <input type="text" id="new-pet-name" placeholder="Име (напр. Макс)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
+        <select id="new-pet-type" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
+          <option value="dog">Куче</option>
+          <option value="cat">Котка</option>
+          <option value="other">Друго</option>
+        </select>
+        <button onclick="createPet()" class="w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm">Създай</button>
+      </div>
+      <div class="relative flex items-center py-1">
+        <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+        <span class="px-3 text-[11px] text-slate-400 font-semibold uppercase">или</span>
+        <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+      </div>
+      <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+        <p class="text-sm font-semibold">Присъедини се с код</p>
+        <input type="text" id="invite-code-input" placeholder="КОД ОТ ПАРТНЬОРА" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none uppercase font-mono tracking-widest text-center">
+        <button onclick="joinWithCode()" class="w-full py-3 rounded-xl border-2 border-sky-500 text-sky-600 dark:text-sky-400 font-bold text-sm">Присъедини се</button>
+      </div>
+      <button onclick="logout()" class="w-full text-center text-xs text-red-500 pt-1">Изход</button>
     </div>
   </div>
+</div>
 
-  <!-- MAIN APP -->
-  <div id="app" class="hidden min-h-screen flex flex-col max-w-md mx-auto relative bg-slate-50 dark:bg-slate-950">
-    
-    <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3 min-w-0">
-        <div id="pet-avatar-box" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white flex items-center justify-center text-xl shrink-0">🐕</div>
-        <div class="min-w-0">
-          <h1 id="pet-title-name" class="font-bold text-[15px] leading-tight truncate">Макс</h1>
-          <p class="text-[11px] text-slate-400 truncate">Споделен дневник</p>
+<!-- MAIN APP -->
+<div id="app" class="hidden min-h-screen flex flex-col max-w-md mx-auto relative bg-slate-50 dark:bg-slate-950">
+
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div id="pet-avatar-box" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white flex items-center justify-center text-xl shrink-0">🐕</div>
+      <div class="min-w-0">
+        <button onclick="switchTab('pets')" class="flex items-center gap-1 font-bold text-[15px] leading-tight truncate">
+          <span id="pet-title-name">Макс</span>
+          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <p class="text-[11px] text-slate-400 truncate">Споделен дневник</p>
+      </div>
+    </div>
+    <button onclick="openDrawer()" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  </header>
+
+  <main class="flex-1 p-4 pb-28">
+
+    <!-- HOME -->
+    <div id="tab-home" class="tab-pane active space-y-4">
+      <div class="grid grid-cols-3 gap-2.5">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Разходки</div>
+          <div id="stat-walks" class="text-xl font-extrabold text-sky-500 mt-0.5">0</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Хранене</div>
+          <div id="stat-meals" class="text-xl font-extrabold text-emerald-500 mt-0.5">0</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Чувал</div>
+          <div id="stat-food-bag" class="text-xl font-extrabold text-amber-500 mt-0.5">—</div>
         </div>
       </div>
-      <button onclick="openDrawer()" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" aria-label="Меню">
-        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="openModal('walk')" class="py-3 rounded-2xl bg-sky-500 text-white font-bold text-[11px] flex flex-col items-center gap-0.5 shadow-md shadow-sky-500/20 active:scale-95 transition">
+          <span class="text-base">+</span>Разходка
+        </button>
+        <button onclick="openModal('meal')" class="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-[11px] flex flex-col items-center gap-0.5 shadow-md shadow-emerald-500/20 active:scale-95 transition">
+          <span class="text-base">+</span>Хранене
+        </button>
+        <button onclick="openModal('hygiene')" class="py-3 rounded-2xl bg-amber-500 text-white font-bold text-[11px] flex flex-col items-center gap-0.5 shadow-md shadow-amber-500/20 active:scale-95 transition">
+          <span class="text-base">+</span>Хигиена
+        </button>
+        <button onclick="openModal('health')" class="py-3 rounded-2xl bg-violet-500 text-white font-bold text-[11px] flex flex-col items-center gap-0.5 shadow-md shadow-violet-500/20 active:scale-95 transition">
+          <span class="text-base">+</span>Здраве
+        </button>
+      </div>
+
+      <!-- Upcoming -->
+      <div id="upcoming-box" class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl p-3.5 hidden">
+        <p class="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-1.5">Предстои</p>
+        <div id="upcoming-list" class="space-y-1 text-sm"></div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm">Днес</h3>
+          <span id="today-date-label" class="text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full"></span>
+        </div>
+        <div id="today-activity-list" class="space-y-2">
+          <p class="text-xs text-slate-400 text-center py-6">Няма записи за днес</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEALTH -->
+    <div id="tab-health" class="tab-pane space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="font-bold text-base">Здраве</h2>
+          <p class="text-xs text-slate-400">Ваксини, медикаменти, хигиена, тегло</p>
+        </div>
+        <button onclick="openModal('health')" class="px-3.5 py-2 rounded-xl bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-500/20">+ Запис</button>
+      </div>
+
+      <!-- Hygiene quick -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm">Хигиена</h3>
+          <button onclick="openModal('hygiene')" class="text-xs text-sky-500 font-semibold">Обнови</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs" id="hygiene-grid">
+          <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+            <div class="text-slate-400">Къпане</div>
+            <div id="hyg-bath" class="font-semibold mt-0.5">—</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+            <div class="text-slate-400">Нокти</div>
+            <div id="hyg-nails" class="font-semibold mt-0.5">—</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+            <div class="text-slate-400">Уши</div>
+            <div id="hyg-ears" class="font-semibold mt-0.5">—</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+            <div class="text-slate-400">Зъби</div>
+            <div id="hyg-teeth" class="font-semibold mt-0.5">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weight -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-sm">Тегло</h3>
+          <button onclick="openModal('weight')" class="text-xs text-sky-500 font-semibold">+ Запис</button>
+        </div>
+        <div id="weight-display" class="text-2xl font-extrabold text-sky-500">— кг</div>
+        <div id="weight-history" class="mt-2 space-y-1 text-xs text-slate-500"></div>
+      </div>
+
+      <div id="health-records-list" class="space-y-2.5">
+        <p class="text-xs text-slate-400 text-center py-6">Все още няма здравни записи</p>
+      </div>
+    </div>
+
+    <!-- PETS LIST -->
+    <div id="tab-pets" class="tab-pane space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-base">Моите любимци</h2>
+        <button onclick="showAddPet()" class="px-3.5 py-2 rounded-xl bg-sky-500 text-white text-xs font-bold">+ Добави</button>
+      </div>
+      <div id="pets-list" class="space-y-2.5"></div>
+    </div>
+
+    <!-- SINGLE PET PROFILE (when selected from list or via header) -->
+    <div id="tab-pet-profile" class="tab-pane space-y-4">
+      <button onclick="switchTab('pets')" class="text-xs text-sky-500 font-semibold flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg> Всички любимци
       </button>
-    </header>
 
-    <main class="flex-1 p-4 pb-28">
-      
-      <div id="tab-home" class="tab-pane active space-y-4">
-        <div class="grid grid-cols-3 gap-2.5">
-          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Разходки</div>
-            <div id="stat-walks" class="text-xl font-extrabold text-sky-500 mt-0.5">0</div>
-          </div>
-          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Хранене</div>
-            <div id="stat-meals" class="text-xl font-extrabold text-emerald-500 mt-0.5">0</div>
-          </div>
-          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-3 text-center shadow-sm">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Чувал</div>
-            <div id="stat-food-bag" class="text-xl font-extrabold text-amber-500 mt-0.5">—</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="openModal('walk')" class="py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs flex flex-col items-center gap-1 shadow-md shadow-sky-500/20 active:scale-[0.98] transition">
-            <span class="text-lg leading-none">+</span> Разходка
-          </button>
-          <button onclick="openModal('meal')" class="py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex flex-col items-center gap-1 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition">
-            <span class="text-lg leading-none">+</span> Хранене
-          </button>
-          <button onclick="openModal('health')" class="py-3.5 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs flex flex-col items-center gap-1 shadow-md shadow-violet-500/20 active:scale-[0.98] transition">
-            <span class="text-lg leading-none">+</span> Здраве
-          </button>
-        </div>
-
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-sm">Днес</h3>
-            <span id="today-date-label" class="text-[11px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full"></span>
-          </div>
-          <div id="today-activity-list" class="space-y-2">
-            <p class="text-xs text-slate-400 text-center py-6">Няма записи за днес</p>
-          </div>
-        </div>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-5 shadow-sm text-center">
+        <div id="pet-big-avatar" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-600 text-white text-3xl flex items-center justify-center mx-auto mb-3">🐕</div>
+        <h2 id="pet-detail-name" class="font-bold text-lg">Макс</h2>
+        <p id="pet-detail-type" class="text-sm text-slate-400">Куче</p>
       </div>
 
-      <div id="tab-health" class="tab-pane space-y-4">
-        <div class="flex items-center justify-between">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <h3 class="font-bold text-sm text-slate-500">Основни данни</h3>
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <h2 class="font-bold text-base">Здраве</h2>
-            <p class="text-xs text-slate-400">Ваксини, обезпаразитяване, прегледи</p>
-          </div>
-          <button onclick="openModal('health')" class="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20">+ Запис</button>
-        </div>
-        <div id="health-records-list" class="space-y-2.5">
-          <p class="text-xs text-slate-400 text-center py-10">Все още няма записи</p>
-        </div>
-      </div>
-
-      <div id="tab-pet" class="tab-pane space-y-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-5 shadow-sm text-center">
-          <div id="pet-big-avatar" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-600 text-white text-3xl flex items-center justify-center mx-auto mb-3">🐕</div>
-          <h2 id="pet-detail-name" class="font-bold text-lg">Макс</h2>
-          <p id="pet-detail-type" class="text-sm text-slate-400">Куче</p>
-        </div>
-
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
-          <h3 class="font-bold text-sm text-slate-500">Основни данни</h3>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Дата на раждане</label>
-              <input type="date" id="pet-birthdate" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Тегло (кг)</label>
-              <input type="number" step="0.1" id="pet-weight" placeholder="—" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
-            </div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Дата на раждане</label>
+            <input type="date" id="pet-birthdate" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Порода</label>
-            <input type="text" id="pet-breed" placeholder="напр. Джак Ръсел" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Тегло (кг)</label>
+            <input type="number" step="0.1" id="pet-weight" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
           </div>
         </div>
-
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
-          <h3 class="font-bold text-sm text-slate-500">Идентификация</h3>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Порода</label>
+          <input type="text" id="pet-breed" placeholder="Джак Ръсел" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-[11px] font-semibold text-slate-400 mb-1">Паспорт</label>
-            <input type="text" id="pet-passport" placeholder="BG..." onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+            <input type="text" id="pet-passport" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-slate-400 mb-1">Чип</label>
-            <input type="text" id="pet-chip" placeholder="15 цифри" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="font-bold text-sm text-slate-500">Храна / чувал</h3>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggle-food-tracking" onchange="savePetDetails()" class="sr-only peer" checked>
-              <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
-            </label>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Марка / модел</label>
-              <input type="text" id="food-brand-model" placeholder="напр. Acana" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Чувал (кг)</label>
-              <input type="number" step="0.5" id="food-bag-kg" placeholder="12" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
-            </div>
+            <input type="text" id="pet-chip" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
           </div>
         </div>
       </div>
-    </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/70 dark:border-slate-800 safe-b z-30">
-      <div class="grid grid-cols-3 py-2 text-center">
-        <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-0.5 text-sky-500 py-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
-          <span class="text-[10px] font-bold">Начало</span>
-        </button>
-        <button onclick="switchTab('health')" id="nav-health" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-          <span class="text-[10px] font-bold">Здраве</span>
-        </button>
-        <button onclick="switchTab('pet')" id="nav-pet" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          <span class="text-[10px] font-bold">Любимец</span>
-        </button>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <h3 class="font-bold text-sm text-slate-500">Храна</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Марка / модел</label>
+            <input type="text" id="food-brand-model" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Чувал (кг)</label>
+            <input type="number" step="0.5" id="food-bag-kg" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Алергии / чувствителности</label>
+          <input type="text" id="pet-allergies" placeholder="пилешко, пшеница..." onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Не харесва / отказва</label>
+          <input type="text" id="pet-dislikes" placeholder="консерви с риба..." onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+        </div>
+        <label class="flex items-center justify-between pt-1">
+          <span class="text-xs font-medium">Следи чувала</span>
+          <input type="checkbox" id="toggle-food-tracking" onchange="savePetDetails()" class="w-4 h-4 rounded accent-sky-500">
+        </label>
       </div>
-    </nav>
-  </div>
 
-  <!-- DRAWER -->
-  <div id="drawer-backdrop" class="fixed inset-0 z-50 bg-black/40 opacity-0 pointer-events-none transition-opacity" onclick="closeDrawer()"></div>
-  <div id="drawer" class="fixed top-0 right-0 z-50 h-full w-[min(320px,85vw)] bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full transition-transform duration-250 flex flex-col">
-    <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-      <h2 class="font-bold text-base">Меню</h2>
-      <button onclick="closeDrawer()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">✕</button>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <h3 class="font-bold text-sm text-slate-500">Поведение и навици</h3>
+        <textarea id="pet-habits" rows="3" placeholder="Обича топки, страхува се от гръмотевици, яде само суха храна..." onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none resize-none"></textarea>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <h3 class="font-bold text-sm text-slate-500">Ветеринар</h3>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Клиника</label>
+          <input type="text" id="pet-vet-clinic" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Ветеринар</label>
+            <input type="text" id="pet-vet-name" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Телефон</label>
+            <input type="tel" id="pet-vet-phone" onchange="savePetDetails()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs outline-none">
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-4">
-      <div class="space-y-2">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Профил</p>
-        <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-3">
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Име</label>
-            <input type="text" id="my-name-input" onchange="saveMyProfile()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Аватар (емоджи)</label>
-            <input type="text" id="my-avatar-input" maxlength="2" onchange="saveMyProfile()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none text-center">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-400 mb-1.5">Цвят</label>
-            <div class="flex gap-2">
-              <button onclick="setMyColor('#0ea5e9')" class="w-7 h-7 rounded-full bg-sky-500"></button>
-              <button onclick="setMyColor('#10b981')" class="w-7 h-7 rounded-full bg-emerald-500"></button>
-              <button onclick="setMyColor('#8b5cf6')" class="w-7 h-7 rounded-full bg-violet-500"></button>
-              <button onclick="setMyColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500"></button>
-            </div>
-          </div>
-        </div>
-      </div>
+  </main>
 
-      <div class="space-y-2">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Външен вид</p>
-        <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 flex items-center justify-between">
-          <span class="text-sm font-medium">Тъмна тема</span>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="toggle-dark" onchange="toggleDarkMode()" class="sr-only peer">
-            <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
-          </label>
-        </div>
-      </div>
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/70 dark:border-slate-800 safe-b z-30">
+    <div class="grid grid-cols-3 py-2 text-center">
+      <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-0.5 text-sky-500 py-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
+        <span class="text-[10px] font-bold">Начало</span>
+      </button>
+      <button onclick="switchTab('health')" id="nav-health" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+        <span class="text-[10px] font-bold">Здраве</span>
+      </button>
+      <button onclick="switchTab('pets')" id="nav-pets" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <span class="text-[10px] font-bold">Любимци</span>
+      </button>
+    </div>
+  </nav>
+</div>
 
-      <div class="space-y-2">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Споделяне</p>
-        <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-2">
-          <p class="text-xs text-slate-500">Код за покана на партньор:</p>
+<!-- DRAWER -->
+<div id="drawer-backdrop" class="fixed inset-0 z-50 bg-black/40 opacity-0 pointer-events-none transition-opacity" onclick="closeDrawer()"></div>
+<div id="drawer" class="fixed top-0 right-0 z-50 h-full w-[min(320px,85vw)] bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full transition-transform duration-250 flex flex-col">
+  <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+    <h2 class="font-bold text-base">Меню</h2>
+    <button onclick="closeDrawer()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">✕</button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div class="space-y-2">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Профил</p>
+      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Име</label>
+          <input type="text" id="my-name-input" onchange="saveMyProfile()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Аватар</label>
+          <input type="text" id="my-avatar-input" maxlength="2" onchange="saveMyProfile()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none text-center">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1.5">Цвят</label>
           <div class="flex gap-2">
-            <input type="text" id="share-code-display" readonly class="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 font-mono text-center font-bold tracking-widest text-sky-500 text-sm border border-slate-200 dark:border-slate-700">
-            <button onclick="copyShareCode()" class="px-3 py-2 rounded-lg bg-sky-500 text-white text-xs font-bold">Копирай</button>
+            <button onclick="setMyColor('#0ea5e9')" class="w-7 h-7 rounded-full bg-sky-500"></button>
+            <button onclick="setMyColor('#10b981')" class="w-7 h-7 rounded-full bg-emerald-500"></button>
+            <button onclick="setMyColor('#8b5cf6')" class="w-7 h-7 rounded-full bg-violet-500"></button>
+            <button onclick="setMyColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500"></button>
           </div>
         </div>
       </div>
-
-      <button onclick="logout()" class="w-full py-3 rounded-xl text-red-500 text-sm font-semibold border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30">Изход от акаунта</button>
     </div>
-  </div>
-
-  <!-- MODAL -->
-  <div id="modal" class="fixed inset-0 z-[60] hidden">
-    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
-    <div class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-b shadow-2xl space-y-4">
-      <div class="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto"></div>
-      <h3 id="modal-title" class="font-bold text-base">Добави</h3>
-      <div id="modal-body" class="space-y-3"></div>
-      <div class="flex gap-2.5 pt-1">
-        <button onclick="closeModal()" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm">Отказ</button>
-        <button onclick="saveModal()" class="flex-1 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm shadow-md shadow-sky-500/20">Запази</button>
+    <div class="space-y-2">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Външен вид</p>
+      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 flex items-center justify-between">
+        <span class="text-sm font-medium">Тъмна тема</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggle-dark" onchange="toggleDarkMode()" class="sr-only peer">
+          <div class="w-10 h-5 bg-slate-200 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+        </label>
       </div>
     </div>
+    <div class="space-y-2">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Споделяне (текущ любимец)</p>
+      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-2">
+        <p class="text-xs text-slate-500">Код за покана:</p>
+        <div class="flex gap-2">
+          <input type="text" id="share-code-display" readonly class="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 font-mono text-center font-bold tracking-widest text-sky-500 text-sm border border-slate-200 dark:border-slate-700">
+          <button onclick="copyShareCode()" class="px-3 py-2 rounded-lg bg-sky-500 text-white text-xs font-bold">Копирай</button>
+        </div>
+      </div>
+    </div>
+    <button onclick="logout()" class="w-full py-3 rounded-xl text-red-500 text-sm font-semibold border border-red-200 dark:border-red-900/50">Изход от акаунта</button>
   </div>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="app.js"></script>
+<!-- MODAL -->
+<div id="modal" class="fixed inset-0 z-[60] hidden">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
+  <div class="absolute bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-b shadow-2xl space-y-4">
+    <div class="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto"></div>
+    <h3 id="modal-title" class="font-bold text-base">Добави</h3>
+    <div id="modal-body" class="space-y-3"></div>
+    <div class="flex gap-2.5 pt-1">
+      <button onclick="closeModal()" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm">Отказ</button>
+      <button onclick="saveModal()" class="flex-1 py-3 rounded-xl bg-sky-500 text-white font-bold text-sm shadow-md shadow-sky-500/20">Запази</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

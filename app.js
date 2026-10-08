@@ -14,31 +14,37 @@ const db = firebase.firestore();
 
 let currentUser = null;
 let currentPetId = null;
-let userPets = []; // [{id, name, type}]
+let userPets = [];
 let petData = {};
 let unsubPet = null;
 let activeModalType = null;
-let tempSetupAvatar = '👨';
-let tempSetupColor = '#0ea5e9';
+let selectedType = 'dog';
 
-(function initDark() {
+(function () {
   const saved = localStorage.getItem('petpulse_dark');
   if (saved === '1' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
   }
 })();
 
+function hideAllScreens() {
+  ['splash','auth-screen','choice-screen','join-screen','newpet-screen','app'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+}
+
 auth.onAuthStateChanged(async (user) => {
   const splash = document.getElementById('splash');
   if (splash) splash.classList.add('hidden');
+
   if (user) {
     currentUser = user;
     await checkUserState();
   } else {
     currentUser = null;
+    hideAllScreens();
     document.getElementById('auth-screen').classList.remove('hidden');
-    document.getElementById('setup-screen').classList.add('hidden');
-    document.getElementById('app').classList.add('hidden');
   }
 });
 
@@ -54,6 +60,7 @@ async function handleRegister() {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
   if (!email || !password) return alert('Попълнете имейл и парола');
+  if (password.length < 6) return alert('Паролата трябва да е поне 6 символа');
   try { await auth.createUserWithEmailAndPassword(email, password); }
   catch (e) { alert('Грешка: ' + e.message); }
 }
@@ -86,61 +93,112 @@ async function checkUserState() {
       startPetListener();
       return;
     }
-    // No pets
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('setup-screen').classList.remove('hidden');
-    document.getElementById('setup-step-profile').classList.remove('hidden');
-    document.getElementById('setup-step-pet').classList.add('hidden');
-    document.getElementById('setup-my-name').value = currentUser.email.split('@')[0];
+    // No pets → choice screen
+    hideAllScreens();
+    document.getElementById('choice-screen').classList.remove('hidden');
   } catch (e) {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('setup-screen').classList.remove('hidden');
+    hideAllScreens();
+    document.getElementById('choice-screen').classList.remove('hidden');
   }
 }
 
-function selectSetupAvatar(emoji) {
-  tempSetupAvatar = emoji;
-  document.querySelectorAll('.setup-av').forEach(b => b.classList.remove('border-sky-500'));
-  if (event?.currentTarget) event.currentTarget.classList.add('border-sky-500');
+function backToChoice() {
+  hideAllScreens();
+  document.getElementById('choice-screen').classList.remove('hidden');
 }
-function selectSetupColor(c) { tempSetupColor = c; }
 
-function proceedToPetSetup() {
-  const name = document.getElementById('setup-my-name').value.trim() || 'Стопанин';
-  window._tempUserMeta = { name, avatar: tempSetupAvatar, color: tempSetupColor };
-  document.getElementById('setup-step-profile').classList.add('hidden');
-  document.getElementById('setup-step-pet').classList.remove('hidden');
+function showJoinForm() {
+  hideAllScreens();
+  document.getElementById('join-screen').classList.remove('hidden');
+  document.getElementById('join-my-name').value = currentUser.email.split('@')[0];
+}
+
+function showNewPetForm() {
+  hideAllScreens();
+  document.getElementById('newpet-screen').classList.remove('hidden');
+  document.getElementById('np-my-name').value = currentUser.email.split('@')[0];
+  // Prefill Max example
+  document.getElementById('np-name').value = 'Макс';
+  document.getElementById('np-breed').value = 'Джак Ръсел териер';
+  document.getElementById('np-weight').value = '7.2';
+  const bd = new Date(); bd.setMonth(bd.getMonth() - 8);
+  document.getElementById('np-birthdate').value = bd.toISOString().slice(0, 10);
+  selectPetType('dog');
+}
+
+function selectPetType(type) {
+  selectedType = type;
+  ['dog', 'cat', 'other'].forEach(t => {
+    const btn = document.getElementById('type-' + t);
+    if (!btn) return;
+    if (t === type) {
+      btn.classList.add('border-sky-500', 'bg-sky-50', 'dark:bg-sky-950/30');
+      btn.classList.remove('border-slate-200', 'dark:border-slate-700');
+    } else {
+      btn.classList.remove('border-sky-500', 'bg-sky-50', 'dark:bg-sky-950/30');
+      btn.classList.add('border-slate-200', 'dark:border-slate-700');
+    }
+  });
 }
 
 async function createPet() {
-  const name = document.getElementById('new-pet-name').value.trim() || 'Макс';
-  const type = document.getElementById('new-pet-type').value;
+  const myName = document.getElementById('np-my-name').value.trim() || currentUser.email.split('@')[0];
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) return alert('Въведи име на любимеца');
+
+  const btn = document.getElementById('create-pet-btn');
+  btn.disabled = true;
+  btn.textContent = 'Създаване...';
+
   const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const userMeta = window._tempUserMeta || { name: currentUser.email.split('@')[0], avatar: '👨', color: '#0ea5e9' };
-  const usersMeta = { [currentUser.uid]: userMeta };
+  const usersMeta = {
+    [currentUser.uid]: { name: myName, avatar: '👤', color: '#0ea5e9' }
+  };
 
   const newPet = {
-    name, type, code, foodBagKg: 12, trackFood: true, breed: '', weight: null, birthdate: '',
-    passport: '', chip: '', allergies: '', dislikes: '', habits: '',
-    vetClinic: '', vetName: '', vetPhone: '',
+    name,
+    type: selectedType,
+    breed: document.getElementById('np-breed').value.trim(),
+    birthdate: document.getElementById('np-birthdate').value,
+    weight: parseFloat(document.getElementById('np-weight').value) || null,
+    gender: document.getElementById('np-gender').value,
+    passport: document.getElementById('np-passport').value.trim(),
+    chip: document.getElementById('np-chip').value.trim(),
+    foodBrandModel: document.getElementById('np-food').value.trim(),
+    foodBagKg: parseFloat(document.getElementById('np-bag').value) || 12,
+    trackFood: true,
+    allergies: '',
+    dislikes: '',
+    habits: '',
     hygiene: { bath: '', nails: '', ears: '', teeth: '' },
     weightHistory: [],
-    members: [currentUser.uid], walks: [], meals: [], health: [], usersMeta
+    code,
+    members: [currentUser.uid],
+    usersMeta,
+    walks: [],
+    meals: [],
+    health: []
   };
 
   try {
     const ref = await db.collection('pets').add(newPet);
     currentPetId = ref.id;
     localStorage.setItem('petpulse_active_pet', currentPetId);
-    document.getElementById('setup-screen').classList.add('hidden');
     await loadUserPets();
     startPetListener();
-  } catch (e) { alert('Грешка: ' + e.message); }
+  } catch (e) {
+    alert('Грешка: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Създай профил на любимеца';
+  }
 }
 
 async function joinWithCode() {
   const code = document.getElementById('invite-code-input').value.trim().toUpperCase();
-  if (!code) return alert('Въведете код');
+  const myName = document.getElementById('join-my-name').value.trim() || currentUser.email.split('@')[0];
+  if (!code) return alert('Въведи код');
+
   try {
     const snap = await db.collection('pets').where('code', '==', code).limit(1).get();
     if (snap.empty) return alert('Невалиден код');
@@ -149,23 +207,15 @@ async function joinWithCode() {
     const members = data.members || [];
     if (!members.includes(currentUser.uid)) members.push(currentUser.uid);
     const usersMeta = data.usersMeta || {};
-    usersMeta[currentUser.uid] = window._tempUserMeta || { name: currentUser.email.split('@')[0], avatar: '👩', color: '#10b981' };
+    usersMeta[currentUser.uid] = { name: myName, avatar: '👤', color: '#10b981' };
     await petDoc.ref.update({ members, usersMeta });
     currentPetId = petDoc.id;
     localStorage.setItem('petpulse_active_pet', currentPetId);
-    document.getElementById('setup-screen').classList.add('hidden');
     await loadUserPets();
     startPetListener();
-  } catch (e) { alert('Грешка: ' + e.message); }
-}
-
-function showAddPet() {
-  // Reuse setup pet step
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('setup-screen').classList.remove('hidden');
-  document.getElementById('setup-step-profile').classList.add('hidden');
-  document.getElementById('setup-step-pet').classList.remove('hidden');
-  window._tempUserMeta = (petData.usersMeta || {})[currentUser.uid] || { name: currentUser.email.split('@')[0], avatar: '👤', color: '#0ea5e9' };
+  } catch (e) {
+    alert('Грешка: ' + e.message);
+  }
 }
 
 function switchToPet(petId) {
@@ -177,8 +227,7 @@ function switchToPet(petId) {
 }
 
 function startPetListener() {
-  document.getElementById('auth-screen').classList.add('hidden');
-  document.getElementById('setup-screen').classList.add('hidden');
+  hideAllScreens();
   document.getElementById('app').classList.remove('hidden');
   const darkToggle = document.getElementById('toggle-dark');
   if (darkToggle) darkToggle.checked = document.documentElement.classList.contains('dark');
@@ -194,8 +243,7 @@ function startPetListener() {
 
 function fmtDate(str) {
   if (!str) return '—';
-  const d = new Date(str + 'T00:00:00');
-  return d.toLocaleDateString('bg-BG', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(str + 'T00:00:00').toLocaleDateString('bg-BG', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function daysAgo(str) {
@@ -207,35 +255,24 @@ function daysAgo(str) {
 }
 
 function renderApp() {
-  const typeLabel = { dog: 'Куче', cat: 'Котка', other: 'Любимец' }[petData.type] || 'Любимец';
   const emoji = petData.type === 'cat' ? '🐈' : (petData.type === 'dog' ? '🐕' : '🐾');
-
-  document.getElementById('pet-title-name').textContent = petData.name || 'Макс';
+  document.getElementById('pet-title-name').textContent = petData.name || 'Любимец';
   document.getElementById('pet-avatar-box').textContent = emoji;
-  document.getElementById('pet-big-avatar').textContent = emoji;
-  document.getElementById('pet-detail-name').textContent = petData.name || 'Макс';
-  document.getElementById('pet-detail-type').textContent = typeLabel;
+  document.getElementById('profile-pet-name').textContent = petData.name || 'любимеца';
   document.getElementById('share-code-display').value = petData.code || '';
 
   // Profile fields
-  document.getElementById('pet-birthdate').value = petData.birthdate || '';
-  document.getElementById('pet-weight').value = petData.weight || '';
   document.getElementById('pet-breed').value = petData.breed || '';
+  document.getElementById('pet-weight').value = petData.weight || '';
+  document.getElementById('pet-birthdate').value = petData.birthdate || '';
+  document.getElementById('pet-gender').value = petData.gender || 'unknown';
   document.getElementById('pet-passport').value = petData.passport || '';
   document.getElementById('pet-chip').value = petData.chip || '';
-  document.getElementById('food-brand-model').value = petData.foodBrandModel || '';
-  document.getElementById('food-bag-kg').value = petData.foodBagKg || 12;
   document.getElementById('pet-allergies').value = petData.allergies || '';
-  document.getElementById('pet-dislikes').value = petData.dislikes || '';
   document.getElementById('pet-habits').value = petData.habits || '';
-  document.getElementById('pet-vet-clinic').value = petData.vetClinic || '';
-  document.getElementById('pet-vet-name').value = petData.vetName || '';
-  document.getElementById('pet-vet-phone').value = petData.vetPhone || '';
-  document.getElementById('toggle-food-tracking').checked = petData.trackFood !== false;
 
-  const meta = (petData.usersMeta || {})[currentUser.uid] || { name: currentUser.email.split('@')[0], avatar: '👨', color: '#0ea5e9' };
+  const meta = (petData.usersMeta || {})[currentUser.uid] || {};
   document.getElementById('my-name-input').value = meta.name || '';
-  document.getElementById('my-avatar-input').value = meta.avatar || '';
 
   // Hygiene
   const hyg = petData.hygiene || {};
@@ -248,102 +285,99 @@ function renderApp() {
   const wh = petData.weightHistory || [];
   const lastW = wh[0] || (petData.weight ? { weight: petData.weight } : null);
   document.getElementById('weight-display').textContent = lastW ? `${lastW.weight} кг` : '— кг';
-  document.getElementById('weight-history').innerHTML = wh.slice(0, 5).map(w =>
+  document.getElementById('weight-history').innerHTML = wh.slice(0, 4).map(w =>
     `<div class="flex justify-between"><span>${fmtDate(w.date)}</span><span class="font-medium">${w.weight} кг</span></div>`
-  ).join('') || '<span class="text-slate-400">Няма история</span>';
+  ).join('') || '';
 
-  // Stats today
+  // Today
   const todayStr = new Date().toISOString().slice(0, 10);
   document.getElementById('today-date-label').textContent = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
+  document.getElementById('pet-subtitle').textContent = new Date().toLocaleDateString('bg-BG', { weekday: 'long', day: 'numeric', month: 'long' });
+
   const walksToday = (petData.walks || []).filter(w => w.date === todayStr);
   const mealsToday = (petData.meals || []).filter(m => m.date === todayStr);
   document.getElementById('stat-walks').textContent = walksToday.length;
   document.getElementById('stat-meals').textContent = mealsToday.length;
 
   if (petData.trackFood !== false) {
-    let totalEaten = 0;
-    (petData.meals || []).forEach(m => { if (m.amount) totalEaten += Number(m.amount); });
-    const bagGrams = (petData.foodBagKg || 12) * 1000;
-    document.getElementById('stat-food-bag').textContent = Math.max(0, (bagGrams - totalEaten) / 1000).toFixed(1) + ' кг';
+    let total = 0;
+    (petData.meals || []).forEach(m => { if (m.amount) total += Number(m.amount); });
+    const bag = (petData.foodBagKg || 12) * 1000;
+    document.getElementById('stat-food-bag').textContent = Math.max(0, (bag - total) / 1000).toFixed(1) + 'кг';
   } else {
-    document.getElementById('stat-food-bag').textContent = 'Изкл.';
+    document.getElementById('stat-food-bag').textContent = '—';
   }
 
-  // Upcoming (next health + hygiene older than 30/60 days)
+  // Upcoming
   const upcoming = [];
   (petData.health || []).filter(h => h.nextDate && h.nextDate >= todayStr)
     .sort((a, b) => a.nextDate.localeCompare(b.nextDate)).slice(0, 3)
     .forEach(h => upcoming.push(`${h.title} – ${fmtDate(h.nextDate)}`));
-  if (hyg.bath && daysAgo(hyg.bath) && parseInt(daysAgo(hyg.bath)) > 30) upcoming.push('Къпане (отдавна)');
-  if (hyg.nails && daysAgo(hyg.nails) && parseInt(daysAgo(hyg.nails)) > 45) upcoming.push('Нокти (отдавна)');
+  if (hyg.bath && parseInt(daysAgo(hyg.bath)) > 30) upcoming.push('Къпане (отдавна)');
+  if (hyg.nails && parseInt(daysAgo(hyg.nails)) > 40) upcoming.push('Нокти (отдавна)');
   const upBox = document.getElementById('upcoming-box');
   if (upcoming.length) {
     upBox.classList.remove('hidden');
     document.getElementById('upcoming-list').innerHTML = upcoming.map(u => `<div>• ${u}</div>`).join('');
-  } else {
-    upBox.classList.add('hidden');
-  }
+  } else upBox.classList.add('hidden');
 
-  // Today activity
+  // Activity list
   const todayList = [
     ...(petData.walks || []).filter(w => w.date === todayStr).map(w => ({ ...w, type: 'walk', label: `Разходка ${w.duration || ''} мин` })),
     ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({ ...m, type: 'meal', label: `Хранене ${m.amount || ''} г` })),
-    ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: `Здраве: ${h.title}` }))
+    ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: h.title }))
   ].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
   const listEl = document.getElementById('today-activity-list');
   if (!todayList.length) {
-    listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Няма записи за днес</p>`;
+    listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Все още няма записи днес</p>`;
   } else {
     listEl.innerHTML = todayList.map(item => {
-      const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤', color: '#0ea5e9' };
+      const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', color: '#0ea5e9' };
       return `<div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border-l-4" style="border-color:${u.color}">
-        <div><div class="text-sm font-semibold">${item.label}</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">${item.time || ''} · ${u.avatar} ${u.name}</div></div>
-        <button onclick="deleteItem('${item.type}','${item.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 text-sm">✕</button>
+        <div>
+          <div class="text-sm font-semibold">${item.label}</div>
+          <div class="text-[11px] text-slate-400">${item.time || ''} · ${u.name}</div>
+        </div>
+        <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-400 hover:text-red-500 text-sm px-2">✕</button>
       </div>`;
     }).join('');
   }
 
-  // Health list
+  // Health records
   const healthEl = document.getElementById('health-records-list');
-  const healthItems = [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  if (!healthItems.length) {
-    healthEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Все още няма здравни записи</p>`;
-  } else {
-    healthEl.innerHTML = healthItems.map(h => `
-      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <h4 class="font-bold text-sm">${h.title}${h.productName ? ' · ' + h.productName : ''}</h4>
-            <p class="text-[11px] text-slate-400 mt-0.5">${fmtDate(h.date)}${h.nextDate ? ' → ' + fmtDate(h.nextDate) : ''}</p>
-            ${h.notes ? `<p class="text-xs text-slate-600 dark:text-slate-300 mt-1.5">${h.notes}</p>` : ''}
-          </div>
-          <button onclick="deleteItem('health','${h.id}')" class="text-slate-400 hover:text-red-500 text-sm shrink-0">✕</button>
+  const items = [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  healthEl.innerHTML = items.length ? items.map(h => `
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 p-4 shadow-sm">
+      <div class="flex justify-between gap-2">
+        <div>
+          <div class="font-bold text-sm">${h.title}${h.productName ? ' · ' + h.productName : ''}</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">${fmtDate(h.date)}${h.nextDate ? ' → ' + fmtDate(h.nextDate) : ''}</div>
+          ${h.notes ? `<p class="text-xs mt-1.5 text-slate-600 dark:text-slate-300">${h.notes}</p>` : ''}
         </div>
-      </div>`).join('');
-  }
+        <button onclick="deleteItem('health','${h.id}')" class="text-slate-400 hover:text-red-500 text-sm">✕</button>
+      </div>
+    </div>`).join('') : `<p class="text-xs text-slate-400 text-center py-6">Няма здравни записи</p>`;
 
-  // Pets list
   renderPetsList();
 }
 
 function renderPetsList() {
   const el = document.getElementById('pets-list');
   if (!userPets.length) {
-    el.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Няма любимци</p>`;
+    el.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Няма любимци</p>`;
     return;
   }
   el.innerHTML = userPets.map(p => {
     const em = p.type === 'cat' ? '🐈' : (p.type === 'dog' ? '🐕' : '🐾');
     const active = p.id === currentPetId;
-    return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl border ${active ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'} shadow-sm text-left">
+    return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl border ${active ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'} text-left">
       <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white flex items-center justify-center text-xl">${em}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-bold text-sm truncate">${p.name}</div>
+        <div class="font-bold text-sm">${p.name}</div>
         <div class="text-[11px] text-slate-400">${{ dog: 'Куче', cat: 'Котка', other: 'Друго' }[p.type] || ''}</div>
       </div>
-      ${active ? '<span class="text-[10px] font-bold text-sky-500 bg-sky-100 dark:bg-sky-900/50 px-2 py-0.5 rounded-full">активен</span>' : ''}
+      ${active ? '<span class="text-[10px] font-bold text-sky-500">активен</span>' : ''}
     </button>`;
   }).join('');
 }
@@ -351,74 +385,63 @@ function renderPetsList() {
 async function saveMyProfile() {
   if (!currentPetId) return;
   const name = document.getElementById('my-name-input').value.trim() || 'Стопанин';
-  const avatar = document.getElementById('my-avatar-input').value.trim() || '👤';
-  const cur = (petData.usersMeta || {})[currentUser.uid] || { color: '#0ea5e9' };
+  const cur = (petData.usersMeta || {})[currentUser.uid] || { color: '#0ea5e9', avatar: '👤' };
   if (!petData.usersMeta) petData.usersMeta = {};
-  petData.usersMeta[currentUser.uid] = { name, avatar, color: cur.color };
+  petData.usersMeta[currentUser.uid] = { ...cur, name };
   await db.collection('pets').doc(currentPetId).update({ usersMeta: petData.usersMeta });
 }
 
-async function setMyColor(colorHex) {
+async function setMyColor(color) {
   if (!currentPetId) return;
   if (!petData.usersMeta) petData.usersMeta = {};
-  const cur = petData.usersMeta[currentUser.uid] || { name: currentUser.email.split('@')[0], avatar: '👤' };
-  petData.usersMeta[currentUser.uid] = { ...cur, color: colorHex };
+  const cur = petData.usersMeta[currentUser.uid] || { name: 'Стопанин', avatar: '👤' };
+  petData.usersMeta[currentUser.uid] = { ...cur, color };
   await db.collection('pets').doc(currentPetId).update({ usersMeta: petData.usersMeta });
 }
 
 async function savePetDetails() {
   if (!currentPetId) return;
   const payload = {
-    birthdate: document.getElementById('pet-birthdate').value,
-    weight: parseFloat(document.getElementById('pet-weight').value) || null,
     breed: document.getElementById('pet-breed').value.trim(),
+    weight: parseFloat(document.getElementById('pet-weight').value) || null,
+    birthdate: document.getElementById('pet-birthdate').value,
+    gender: document.getElementById('pet-gender').value,
     passport: document.getElementById('pet-passport').value.trim(),
     chip: document.getElementById('pet-chip').value.trim(),
-    foodBrandModel: document.getElementById('food-brand-model').value.trim(),
-    foodBagKg: parseFloat(document.getElementById('food-bag-kg').value) || 12,
     allergies: document.getElementById('pet-allergies').value.trim(),
-    dislikes: document.getElementById('pet-dislikes').value.trim(),
-    habits: document.getElementById('pet-habits').value.trim(),
-    vetClinic: document.getElementById('pet-vet-clinic').value.trim(),
-    vetName: document.getElementById('pet-vet-name').value.trim(),
-    vetPhone: document.getElementById('pet-vet-phone').value.trim(),
-    trackFood: document.getElementById('toggle-food-tracking').checked
+    habits: document.getElementById('pet-habits').value.trim()
   };
   Object.assign(petData, payload);
   await db.collection('pets').doc(currentPetId).update(payload);
-  // also update local userPets name if changed
-  const up = userPets.find(p => p.id === currentPetId);
-  if (up) up.name = petData.name;
 }
 
 function openModal(type) {
   activeModalType = type;
-  const titles = { walk: 'Нова разходка', meal: 'Хранене', health: 'Здравен запис', hygiene: 'Хигиена', weight: 'Ново тегло' };
+  const titles = { walk: 'Разходка', meal: 'Хранене', health: 'Здравен запис', hygiene: 'Хигиена', weight: 'Тегло' };
   document.getElementById('modal-title').textContent = titles[type] || 'Добави';
   const body = document.getElementById('modal-body');
   const now = new Date();
-  const timeVal = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const timeVal = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const today = now.toISOString().slice(0, 10);
 
   if (type === 'walk') {
     body.innerHTML = `
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Минути</label>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Продължителност (мин)</label>
       <input id="m-duration" type="number" placeholder="30" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>`;
   } else if (type === 'meal') {
     body.innerHTML = `
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Грама</label>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Количество (г)</label>
       <input id="m-amount" type="number" placeholder="65" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>`;
   } else if (type === 'health') {
-    const lastProduct = (petData.health || [])[0]?.productName || '';
     body.innerHTML = `
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Тип / заглавие</label>
-      <input id="m-title" type="text" placeholder="Обезпаразитяване / Ваксина" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Продукт</label>
-      <input id="m-product" type="text" value="${lastProduct}" placeholder="NexGard / Drontal" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Какво</label>
+      <input id="m-title" type="text" placeholder="Ваксина / Обезпаразитяване / Преглед" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Продукт / лекарство</label>
+      <input id="m-product" type="text" placeholder="по избор" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Дата</label>
       <input id="m-date" type="date" value="${today}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Следваща дата</label>
@@ -428,7 +451,7 @@ function openModal(type) {
   } else if (type === 'hygiene') {
     const hyg = petData.hygiene || {};
     body.innerHTML = `
-      <p class="text-xs text-slate-500">Маркирай какво си направил днес (или избери дата):</p>
+      <p class="text-xs text-slate-500 mb-1">Обнови датите (остави празно ако не си правил):</p>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Къпане</label>
       <input id="m-bath" type="date" value="${hyg.bath || ''}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Нокти</label>
@@ -436,8 +459,7 @@ function openModal(type) {
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Уши</label>
       <input id="m-ears" type="date" value="${hyg.ears || ''}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Зъби</label>
-      <input id="m-teeth" type="date" value="${hyg.teeth || ''}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <button type="button" onclick="document.getElementById('m-bath').value='${today}'" class="text-xs text-sky-500 font-semibold">Постави днес за къпане</button>`;
+      <input id="m-teeth" type="date" value="${hyg.teeth || ''}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm outline-none"></div>`;
   } else if (type === 'weight') {
     body.innerHTML = `
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Тегло (кг)</label>
@@ -455,23 +477,23 @@ function closeModal() {
 
 async function saveModal() {
   if (!currentPetId) return;
-  const newItem = { id: 'item_' + Date.now(), createdAt: new Date().toISOString(), authorUid: currentUser.uid, date: new Date().toISOString().slice(0, 10) };
+  const item = { id: 'i' + Date.now(), createdAt: new Date().toISOString(), authorUid: currentUser.uid, date: new Date().toISOString().slice(0, 10) };
 
   if (activeModalType === 'walk') {
-    newItem.time = document.getElementById('m-time').value;
-    newItem.duration = document.getElementById('m-duration').value;
-    petData.walks = [newItem, ...(petData.walks || [])];
+    item.time = document.getElementById('m-time').value;
+    item.duration = document.getElementById('m-duration').value;
+    petData.walks = [item, ...(petData.walks || [])];
   } else if (activeModalType === 'meal') {
-    newItem.time = document.getElementById('m-time').value;
-    newItem.amount = document.getElementById('m-amount').value;
-    petData.meals = [newItem, ...(petData.meals || [])];
+    item.time = document.getElementById('m-time').value;
+    item.amount = document.getElementById('m-amount').value;
+    petData.meals = [item, ...(petData.meals || [])];
   } else if (activeModalType === 'health') {
-    newItem.title = document.getElementById('m-title').value || 'Здравен запис';
-    newItem.productName = document.getElementById('m-product').value.trim();
-    newItem.date = document.getElementById('m-date').value;
-    newItem.nextDate = document.getElementById('m-next').value;
-    newItem.notes = document.getElementById('m-notes').value;
-    petData.health = [newItem, ...(petData.health || [])];
+    item.title = document.getElementById('m-title').value || 'Запис';
+    item.productName = document.getElementById('m-product').value.trim();
+    item.date = document.getElementById('m-date').value;
+    item.nextDate = document.getElementById('m-next').value;
+    item.notes = document.getElementById('m-notes').value;
+    petData.health = [item, ...(petData.health || [])];
   } else if (activeModalType === 'hygiene') {
     petData.hygiene = {
       bath: document.getElementById('m-bath').value || (petData.hygiene || {}).bath || '',
@@ -484,57 +506,44 @@ async function saveModal() {
     const d = document.getElementById('m-wdate').value;
     if (w) {
       petData.weight = w;
-      petData.weightHistory = [{ date: d, weight: w }, ...(petData.weightHistory || [])].slice(0, 30);
+      petData.weightHistory = [{ date: d, weight: w }, ...(petData.weightHistory || [])].slice(0, 20);
     }
   }
 
   try {
-    const update = {
+    await db.collection('pets').doc(currentPetId).update({
       walks: petData.walks || [],
       meals: petData.meals || [],
       health: petData.health || [],
       hygiene: petData.hygiene || {},
       weight: petData.weight || null,
       weightHistory: petData.weightHistory || []
-    };
-    await db.collection('pets').doc(currentPetId).update(update);
+    });
     closeModal();
   } catch (e) { alert('Грешка: ' + e.message); }
 }
 
 async function deleteItem(type, id) {
   if (!confirm('Изтриване?')) return;
-  if (type === 'walk') petData.walks = (petData.walks || []).filter(w => w.id !== id);
-  if (type === 'meal') petData.meals = (petData.meals || []).filter(m => m.id !== id);
-  if (type === 'health') petData.health = (petData.health || []).filter(h => h.id !== id);
-  try {
-    await db.collection('pets').doc(currentPetId).update({
-      walks: petData.walks || [], meals: petData.meals || [], health: petData.health || []
-    });
-  } catch (e) { alert('Грешка: ' + e.message); }
+  if (type === 'walk') petData.walks = (petData.walks || []).filter(x => x.id !== id);
+  if (type === 'meal') petData.meals = (petData.meals || []).filter(x => x.id !== id);
+  if (type === 'health') petData.health = (petData.health || []).filter(x => x.id !== id);
+  await db.collection('pets').doc(currentPetId).update({
+    walks: petData.walks || [], meals: petData.meals || [], health: petData.health || []
+  });
 }
 
-function switchTab(tabId) {
-  ['home', 'health', 'pets', 'pet-profile'].forEach(t => {
-    const el = document.getElementById(`tab-${t}`);
-    if (el) el.classList.toggle('active', t === tabId);
-  });
-  // nav highlight only for main 3
+function switchTab(id) {
   ['home', 'health', 'pets'].forEach(t => {
-    const nav = document.getElementById(`nav-${t}`);
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === id);
+    const nav = document.getElementById('nav-' + t);
     if (nav) {
-      nav.classList.toggle('text-sky-500', t === tabId || (tabId === 'pet-profile' && t === 'pets'));
-      nav.classList.toggle('text-slate-400', !(t === tabId || (tabId === 'pet-profile' && t === 'pets')));
+      nav.classList.toggle('text-sky-500', t === id);
+      nav.classList.toggle('text-slate-400', t !== id);
     }
   });
-  if (tabId === 'pets') loadUserPets().then(renderPetsList);
-  if (tabId === 'pet-profile' || tabId === 'home') { /* already rendered */ }
+  if (id === 'pets') loadUserPets().then(renderPetsList);
 }
-
-// Make header pet name open profile
-document.addEventListener('DOMContentLoaded', () => {
-  // already handled via onclick on the button
-});
 
 function openDrawer() {
   document.getElementById('drawer').classList.add('drawer-open');
@@ -545,14 +554,14 @@ function closeDrawer() {
   document.getElementById('drawer-backdrop').classList.remove('drawer-bg-open');
 }
 function toggleDarkMode() {
-  const isDark = document.getElementById('toggle-dark').checked;
-  document.documentElement.classList.toggle('dark', isDark);
-  localStorage.setItem('petpulse_dark', isDark ? '1' : '0');
+  const on = document.getElementById('toggle-dark').checked;
+  document.documentElement.classList.toggle('dark', on);
+  localStorage.setItem('petpulse_dark', on ? '1' : '0');
 }
 function copyShareCode() {
-  const input = document.getElementById('share-code-display');
-  input.select();
-  navigator.clipboard.writeText(input.value);
+  const el = document.getElementById('share-code-display');
+  el.select();
+  navigator.clipboard.writeText(el.value);
   alert('Кодът е копиран!');
 }
 

@@ -458,42 +458,67 @@ function renderWidget(id) {
   }
 
   if (id === 'timeline') {
-    const typeColor = { walk: '#0ea5e9', meal: '#10b981', health: '#f59e0b' };
+    const typeMeta = {
+      walk: { color: '#0ea5e9', bg: 'bg-sky-50 dark:bg-sky-950/30', icon: '🚶', name: 'Разходка' },
+      meal: { color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-950/30', icon: '🥣', name: 'Храна' },
+      health: { color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-950/30', icon: '💊', name: 'Здраве' },
+      plan: { color: '#8b5cf6', bg: 'bg-violet-50 dark:bg-violet-950/30', icon: '📅', name: 'План' }
+    };
     const weatherIcon = { sun: '☀️', cloud: '☁️', rain: '🌧️', snow: '❄️' };
     const list = [
       ...(petData.walks || []).filter(w => w.date === todayStr).map(w => ({
         ...w, type: 'walk',
-        label: `Разходка ${w.duration || ''} мин${w.weather ? ' ' + (weatherIcon[w.weather] || '') : ''}${w.place ? ' · ' + w.place : ''}`
+        title: `Разходка${w.duration ? ' · ' + w.duration + ' мин' : ''}`,
+        sub: [w.weather ? weatherIcon[w.weather] : '', w.place || ''].filter(Boolean).join(' ')
       })),
       ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({
         ...m, type: 'meal',
-        label: `${m.foodType === 'treat' ? 'Награда' : 'Хранене'}${m.foodName ? ' · ' + m.foodName : ''}${m.amount ? ' ' + m.amount + ' г' : ''}`
+        title: `${m.foodType === 'treat' ? 'Награда' : 'Хранене'}${m.amount ? ' · ' + m.amount + ' г' : ''}`,
+        sub: m.foodName || ''
       })),
-      ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: h.title }))
-    ].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
-    let body = list.length ? list.map(item => {
-      const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤' };
-      const border = typeColor[item.type] || '#94a3b8';
-      const av = u.photoURL
-        ? `<img src="${u.photoURL}" class="w-8 h-8 rounded-full object-cover shrink-0" alt="">`
-        : `<div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-base shrink-0">${u.avatar || '👤'}</div>`;
-      const mapLink = item.lat && item.lng
-        ? `<a href="https://www.google.com/maps?q=${item.lat},${item.lng}" target="_blank" rel="noopener" class="text-[10px] text-sky-500 font-medium">Карта</a>`
-        : '';
-      return `<div class="flex items-center gap-3 bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3 border-l-4" style="border-color:${border}">
-        ${av}
-        <div class="flex-1 min-w-0"><div class="text-sm font-semibold">${item.label}</div>
-        <div class="text-[11px] text-slate-400">${item.time || ''} · ${u.name} ${mapLink}</div></div>
-        <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>
+      ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({
+        ...h, type: 'health', title: h.title, sub: h.productName || h.notes || ''
+      })),
+      ...(petData.plans || []).filter(p => p.date === todayStr).map(p => ({
+        ...p, type: 'plan', title: p.title, sub: p.notes || ''
+      }))
+    ].sort((a, b) => (a.time || a.createdAt || '').localeCompare(b.time || b.createdAt || ''));
+    const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'long', day: 'numeric', month: 'long' });
+    let body;
+    if (!list.length) {
+      body = `<div class="text-center py-6">
+        <div class="text-2xl mb-1">📭</div>
+        <p class="text-xs text-slate-400">Все още тихо днес</p>
+        <button onclick="toggleFab()" class="mt-2 text-xs font-bold text-teal-600">+ Добави запис</button>
       </div>`;
-    }).join('') : `<p class="text-xs text-slate-400 text-center py-4">Няма записи днес</p>`;
+    } else {
+      body = `<div class="relative pl-3 space-y-0">
+        <div class="absolute left-[19px] top-2 bottom-2 w-0.5 bg-stone-200 dark:bg-slate-700"></div>
+        ${list.map(item => {
+          const tm = typeMeta[item.type] || typeMeta.plan;
+          const u = (petData.usersMeta || {})[item.authorUid] || {};
+          return `<div class="relative flex gap-3 py-2.5">
+            <div class="relative z-10 w-9 h-9 rounded-full ${tm.bg} flex items-center justify-center text-base shrink-0 border-2 border-white dark:border-slate-900">${tm.icon}</div>
+            <div class="flex-1 min-w-0 pt-0.5">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="text-sm font-bold leading-tight">${item.title}</div>
+                  ${item.sub ? `<div class="text-[11px] text-slate-500 mt-0.5">${item.sub}</div>` : ''}
+                  <div class="text-[10px] text-slate-400 mt-0.5">${item.time || '—'} · ${u.name || 'Стопанин'}</div>
+                </div>
+                ${item.type !== 'plan' ? `<button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-300 hover:text-red-500 text-xs">✕</button>` : `<button onclick="deletePlan('${item.id}')" class="text-slate-300 hover:text-red-500 text-xs">✕</button>`}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
     return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between mb-1">
         <h3 class="font-bold text-sm">Днес</h3>
-        <span class="text-[11px] text-slate-400 bg-stone-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">${dateLabel}</span>
+        <span class="text-[11px] text-slate-400 font-medium">${dateLabel}</span>
       </div>
-      <div class="space-y-2">${body}</div>
+      ${body}
     </div>`;
   }
 
@@ -573,7 +598,15 @@ function renderHomeWidgets() {
 function renderApp() {
   const emoji = petData.type === 'cat' ? '🐈' : (petData.type === 'dog' ? '🐕' : '🐾');
   document.getElementById('pet-title-name').textContent = petData.name || 'Любимец';
-  document.getElementById('pet-avatar-box').textContent = emoji;
+  const avBox = document.getElementById('pet-avatar-box');
+  if (avBox) {
+    if (petData.photoURL) {
+      avBox.innerHTML = `<img src="${petData.photoURL}" class="w-full h-full object-cover" alt="">`;
+    } else {
+      avBox.textContent = emoji;
+    }
+  }
+  applyPetTheme(petData.themeColor || '#0d9488');
   document.getElementById('profile-pet-name').textContent = petData.name || 'любимеца';
   document.getElementById('share-code-display').value = petData.code || '';
   document.getElementById('pet-subtitle').textContent = new Date().toLocaleDateString('bg-BG', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1240,7 +1273,7 @@ async function deleteItem(type, id) {
 
 function switchTab(id) {
   closeFab();
-  ['home', 'health', 'pets'].forEach(t => {
+  ['home', 'health', 'pets', 'calendar'].forEach(t => {
     document.getElementById('tab-' + t)?.classList.toggle('active', t === id);
     const nav = document.getElementById('nav-' + t);
     if (nav) {
@@ -1250,12 +1283,11 @@ function switchTab(id) {
   });
   if (id === 'pets') loadUserPets().then(() => { renderPetsList(); renderFoodsList(); });
   if (id === 'home') renderHomeWidgets();
+  if (id === 'calendar') renderCalendar();
+  // health still reachable from home quick actions
+  if (id === 'health') setHealthSub(healthSub || 'overview');
 }
 
-function openDrawer() {
-  document.getElementById('drawer').classList.add('drawer-open');
-  document.getElementById('drawer-backdrop').classList.add('drawer-bg-open');
-}
 function closeDrawer() {
   document.getElementById('drawer').classList.remove('drawer-open');
   document.getElementById('drawer-backdrop').classList.remove('drawer-bg-open');
@@ -1592,6 +1624,227 @@ async function sendGemini() {
       if (av) av.textContent = e;
       renderAiChat();
     }
+  };
+})();
+
+// —— Drawer navigation ——
+function drawerShowRoot() {
+  ['root','profile','pet','ai','screen','share'].forEach(p => {
+    document.getElementById('drawer-' + p)?.classList.toggle('hidden', p !== 'root');
+  });
+  document.getElementById('drawer-back')?.classList.add('hidden');
+  document.getElementById('drawer-title').textContent = 'Меню';
+}
+function drawerOpen(panel) {
+  ['root','profile','pet','ai','screen','share'].forEach(p => {
+    document.getElementById('drawer-' + p)?.classList.toggle('hidden', p !== panel);
+  });
+  document.getElementById('drawer-back')?.classList.remove('hidden');
+  const titles = { profile: 'Моят профил', pet: 'Любимец', ai: 'AI асистент', screen: 'Екран и вид', share: 'Споделяне' };
+  document.getElementById('drawer-title').textContent = titles[panel] || 'Меню';
+  if (panel === 'profile') syncMyPhotoPreview();
+  if (panel === 'pet') syncPetPhotoPreview();
+  if (panel === 'ai') syncAiSettingsUI();
+}
+function openDrawer() {
+  document.getElementById('drawer').classList.add('drawer-open');
+  document.getElementById('drawer-backdrop').classList.add('drawer-bg-open');
+  drawerShowRoot();
+  syncAiSettingsUI();
+}
+
+// —— Theme & photos ——
+function applyPetTheme(color) {
+  const c = color || '#0d9488';
+  document.documentElement.style.setProperty('--pet-theme', c);
+  // update a few key buttons via style when possible
+  const fab = document.getElementById('nav-fab');
+  if (fab) fab.style.background = `linear-gradient(135deg, ${c}, ${c}dd)`;
+}
+async function setPetTheme(color) {
+  if (!currentPetId) return;
+  petData.themeColor = color;
+  await db.collection('pets').doc(currentPetId).update({ themeColor: color });
+  applyPetTheme(color);
+}
+function compressImage(file, maxW, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadMyPhoto(ev) {
+  const file = ev.target.files?.[0];
+  if (!file || !currentPetId) return;
+  try {
+    const dataUrl = await compressImage(file, 256, 0.7);
+    const cur = (petData.usersMeta || {})[currentUser.uid] || {};
+    if (!petData.usersMeta) petData.usersMeta = {};
+    petData.usersMeta[currentUser.uid] = { ...cur, photoURL: dataUrl };
+    await db.collection('pets').doc(currentPetId).update({ usersMeta: petData.usersMeta });
+    syncMyPhotoPreview();
+  } catch (e) { alert('Грешка при качване: ' + e.message); }
+}
+async function uploadPetPhoto(ev) {
+  const file = ev.target.files?.[0];
+  if (!file || !currentPetId) return;
+  try {
+    const dataUrl = await compressImage(file, 400, 0.75);
+    petData.photoURL = dataUrl;
+    await db.collection('pets').doc(currentPetId).update({ photoURL: dataUrl });
+    syncPetPhotoPreview();
+  } catch (e) { alert('Грешка при качване: ' + e.message); }
+}
+function syncMyPhotoPreview() {
+  const el = document.getElementById('my-photo-preview');
+  if (!el) return;
+  const m = (petData.usersMeta || {})[currentUser.uid] || {};
+  if (m.photoURL) el.innerHTML = `<img src="${m.photoURL}" class="w-full h-full object-cover" alt="">`;
+  else el.textContent = m.avatar || '👤';
+}
+function syncPetPhotoPreview() {
+  const el = document.getElementById('pet-photo-preview');
+  if (!el) return;
+  if (petData.photoURL) el.innerHTML = `<img src="${petData.photoURL}" class="w-full h-full object-cover" alt="">`;
+  else el.textContent = petEmoji();
+}
+
+// —— Calendar / plans ——
+function renderCalendar() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const label = document.getElementById('calendar-month-label');
+  if (label) label.textContent = now.toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' });
+  const grid = document.getElementById('calendar-grid');
+  if (!grid) return;
+  const first = new Date(y, m, 1);
+  const startDay = (first.getDay() + 6) % 7; // Mon=0
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const plans = petData.plans || [];
+  const healthNext = (petData.health || []).filter(h => h.nextDate);
+  const dots = {};
+  plans.forEach(p => { if (p.date) dots[p.date] = (dots[p.date] || 0) + 1; });
+  healthNext.forEach(h => { dots[h.nextDate] = (dots[h.nextDate] || 0) + 1; });
+  const todayStr = now.toISOString().slice(0, 10);
+  let html = ['П','В','С','Ч','П','С','Н'].map(d => `<div class="text-slate-400 font-semibold py-1">${d}</div>`).join('');
+  for (let i = 0; i < startDay; i++) html += `<div></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === todayStr;
+    const has = dots[ds];
+    html += `<button onclick="showDayPlans('${ds}')" class="aspect-square rounded-xl flex flex-col items-center justify-center ${isToday ? 'bg-teal-600 text-white font-bold' : 'hover:bg-stone-200 dark:hover:bg-slate-800'}">
+      <span>${d}</span>
+      ${has ? `<span class="w-1 h-1 rounded-full ${isToday?'bg-white':'bg-amber-500'} mt-0.5"></span>` : ''}
+    </button>`;
+  }
+  grid.innerHTML = html;
+
+  const upcoming = [
+    ...plans.map(p => ({ ...p, kind: 'plan' })),
+    ...healthNext.map(h => ({ id: h.id, title: h.title, date: h.nextDate, notes: 'От здравен запис', kind: 'health' }))
+  ].filter(x => x.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 12);
+
+  const list = document.getElementById('calendar-upcoming');
+  if (!list) return;
+  list.innerHTML = upcoming.length ? upcoming.map(u => `
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 flex justify-between gap-2">
+      <div>
+        <div class="font-bold text-sm">${u.title}</div>
+        <div class="text-[11px] text-slate-400">${fmtDate(u.date)}${u.notes ? ' · ' + u.notes : ''}</div>
+      </div>
+      ${u.kind === 'plan' ? `<button onclick="deletePlan('${u.id}')" class="text-slate-400 hover:text-red-500 text-sm">✕</button>` : ''}
+    </div>`).join('') : `<p class="text-xs text-slate-400 text-center py-6">Няма планирани събития</p>`;
+}
+function showDayPlans(ds) {
+  const items = (petData.plans || []).filter(p => p.date === ds);
+  if (!items.length) {
+    if (confirm('Няма планове за ' + fmtDate(ds) + '. Добави?')) {
+      openModal('plan');
+      setTimeout(() => { const el = document.getElementById('m-plan-date'); if (el) el.value = ds; }, 100);
+    }
+    return;
+  }
+  alert(items.map(i => i.title + (i.notes ? ' – ' + i.notes : '')).join('\n'));
+}
+async function deletePlan(id) {
+  if (!confirm('Изтриване на плана?')) return;
+  petData.plans = (petData.plans || []).filter(p => p.id !== id);
+  await db.collection('pets').doc(currentPetId).update({ plans: petData.plans });
+  renderCalendar();
+  renderHomeWidgets();
+}
+
+// Extend openModal for plan
+const _openModalOrig = openModal;
+openModal = function (type) {
+  if (type === 'plan') {
+    activeModalType = 'plan';
+    document.getElementById('modal-title').textContent = 'Планирай';
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('modal-body').innerHTML = `
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Какво</label>
+        <input id="m-plan-title" type="text" placeholder="Ваксина / Голяма разходка / Груминг…" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Дата</label>
+        <input id="m-plan-date" type="date" value="${today}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Час (по избор)</label>
+        <input id="m-plan-time" type="time" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      </div>
+      <textarea id="m-plan-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>`;
+    document.getElementById('modal').classList.remove('hidden');
+    return;
+  }
+  _openModalOrig(type);
+};
+const _saveModalOrig = saveModal;
+saveModal = async function () {
+  if (activeModalType === 'plan') {
+    const title = document.getElementById('m-plan-title')?.value.trim();
+    if (!title) return alert('Въведи заглавие');
+    const item = {
+      id: 'p' + Date.now(),
+      title,
+      date: document.getElementById('m-plan-date')?.value,
+      time: document.getElementById('m-plan-time')?.value || '',
+      notes: document.getElementById('m-plan-notes')?.value.trim() || '',
+      authorUid: currentUser.uid,
+      createdAt: new Date().toISOString()
+    };
+    petData.plans = [item, ...(petData.plans || [])];
+    await db.collection('pets').doc(currentPetId).update({ plans: petData.plans });
+    closeModal();
+    renderCalendar();
+    renderHomeWidgets();
+    return;
+  }
+  return _saveModalOrig();
+};
+
+// FAB emoji sync
+(function patchFabEmoji() {
+  const prev = renderApp;
+  renderApp = function () {
+    prev();
+    const fab = document.getElementById('ai-fab-emoji');
+    if (fab) fab.textContent = aiDisplayEmoji();
   };
 })();
 

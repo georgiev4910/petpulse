@@ -161,7 +161,7 @@
 <div id="app" class="hidden min-h-screen flex flex-col max-w-md mx-auto relative bg-stone-100 dark:bg-slate-950">
   <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-stone-200/80 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
     <button onclick="switchTab('pets')" class="flex items-center gap-2.5 min-w-0 text-left active:opacity-80">
-      <div id="pet-avatar-box" class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl shrink-0 ring-2 ring-teal-500/20">🐕</div>
+      <div id="pet-avatar-box" class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl shrink-0 ring-2 ring-teal-500/20 overflow-hidden">🐕</div>
       <div class="min-w-0">
         <div class="flex items-center gap-1 font-bold text-[15px]">
           <span id="pet-title-name">Макс</span>
@@ -170,18 +170,30 @@
         <p id="pet-subtitle" class="text-[11px] text-slate-400 truncate">Днес</p>
       </div>
     </button>
-    <div class="flex gap-1.5">
-      <button onclick="openCustomize()" class="w-10 h-10 rounded-xl bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-slate-600" title="Модули">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h14"/></svg>
-      </button>
-      <button onclick="openDrawer()" class="w-10 h-10 rounded-xl bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-slate-600">
-        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
-    </div>
+    <button onclick="openDrawer()" class="w-10 h-10 rounded-xl bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-slate-600">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
   </header>
+
+  <!-- Floating AI -->
+  <button id="ai-fab" onclick="openGeminiChat()" class="fixed bottom-24 right-4 z-40 max-w-md mx-auto w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl shadow-orange-600/30 flex items-center justify-center text-2xl active:scale-95 transition" title="Поговори с AI">
+    <span id="ai-fab-emoji">🐕</span>
+  </button>
 
   <main class="flex-1 p-4 pb-28">
     <div id="tab-home" class="pane active space-y-3"></div>
+    <div id="tab-calendar" class="pane space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-base">Календар</h2>
+        <button onclick="openModal('plan')" class="px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold">+ План</button>
+      </div>
+      <div id="calendar-month-label" class="text-sm font-semibold text-slate-500"></div>
+      <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center text-[11px]"></div>
+      <div>
+        <h3 class="font-bold text-sm mb-2">Предстоящи</h3>
+        <div id="calendar-upcoming" class="space-y-2"></div>
+      </div>
+    </div>
 
     <div id="tab-health" class="pane space-y-4">
       <div class="flex items-center justify-between">
@@ -306,9 +318,9 @@
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3l9-8z"/></svg>
         <span class="text-[10px] font-bold">Начало</span>
       </button>
-      <button onclick="switchTab('health')" id="nav-health" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l3 3 5-7 3 4 4-6"/><path stroke-linecap="round" d="M3 19h18"/></svg>
-        <span class="text-[10px] font-bold">Здраве</span>
+      <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center gap-0.5 text-slate-400 py-1">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <span class="text-[10px] font-bold">Календар</span>
       </button>
       <div class="flex justify-center -mt-5">
         <button onclick="toggleFab()" id="nav-fab" class="w-14 h-14 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-600/40 flex items-center justify-center text-3xl font-light leading-none active:scale-95 transition">+</button>
@@ -346,105 +358,167 @@
 
 <!-- DRAWER -->
 <div id="drawer-backdrop" class="fixed inset-0 z-50 bg-black/40 opacity-0 pointer-events-none transition-opacity" onclick="closeDrawer()"></div>
-<div id="drawer" class="fixed top-0 right-0 z-50 h-full w-[min(300px,85vw)] bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full transition-transform duration-250 flex flex-col">
-  <div class="p-5 border-b border-stone-200 dark:border-slate-800 flex items-center justify-between">
-    <h2 class="font-bold">Меню</h2>
+<div id="drawer" class="fixed top-0 right-0 z-50 h-full w-[min(320px,88vw)] bg-white dark:bg-slate-900 shadow-2xl transform translate-x-full transition-transform duration-250 flex flex-col">
+  <div class="p-4 border-b border-stone-200 dark:border-slate-800 flex items-center justify-between">
+    <button id="drawer-back" onclick="drawerShowRoot()" class="hidden w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">←</button>
+    <h2 id="drawer-title" class="font-bold flex-1">Меню</h2>
     <button onclick="closeDrawer()" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">✕</button>
   </div>
-  <div class="flex-1 overflow-y-auto p-4 space-y-4">
-    <div class="space-y-2">
-      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Профил</p>
-      <div class="bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-3">
-        <input type="text" id="my-name-input" onchange="saveMyProfile()" placeholder="Име" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
+  <div class="flex-1 overflow-y-auto p-4">
+    <!-- Root menu -->
+    <div id="drawer-root" class="space-y-2">
+      <button onclick="drawerOpen('profile')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-left active:scale-[0.99]">
+        <span class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center text-lg">👤</span>
+        <span class="flex-1"><span class="block font-bold text-sm">Моят профил</span><span class="block text-[11px] text-slate-400">име, снимка, цвят</span></span>
+        <span class="text-slate-400">›</span>
+      </button>
+      <button onclick="drawerOpen('pet')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-left active:scale-[0.99]">
+        <span class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-lg">🐕</span>
+        <span class="flex-1"><span class="block font-bold text-sm">Любимец (тема)</span><span class="block text-[11px] text-slate-400">снимка, акцентен цвят</span></span>
+        <span class="text-slate-400">›</span>
+      </button>
+      <button onclick="drawerOpen('ai')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-left active:scale-[0.99]">
+        <span class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-lg">✨</span>
+        <span class="flex-1"><span class="block font-bold text-sm">AI асистент</span><span class="block text-[11px] text-slate-400">режим, стил, ключ</span></span>
+        <span class="text-slate-400">›</span>
+      </button>
+      <button onclick="drawerOpen('screen')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-left active:scale-[0.99]">
+        <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-lg">📱</span>
+        <span class="flex-1"><span class="block font-bold text-sm">Екран и вид</span><span class="block text-[11px] text-slate-400">модули, тъмна тема</span></span>
+        <span class="text-slate-400">›</span>
+      </button>
+      <button onclick="drawerOpen('share')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-left active:scale-[0.99]">
+        <span class="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-lg">🔗</span>
+        <span class="flex-1"><span class="block font-bold text-sm">Споделяне</span><span class="block text-[11px] text-slate-400">код за покана</span></span>
+        <span class="text-slate-400">›</span>
+      </button>
+      <button onclick="logout()" class="w-full mt-3 py-3 rounded-xl text-red-500 text-sm font-semibold border border-red-200 dark:border-red-900/50">Изход</button>
+    </div>
+
+    <!-- Profile panel -->
+    <div id="drawer-profile" class="hidden space-y-3">
+      <div class="flex flex-col items-center gap-2">
+        <div id="my-photo-preview" class="w-20 h-20 rounded-full bg-stone-200 dark:bg-slate-700 flex items-center justify-center text-3xl overflow-hidden border-2 border-teal-500">👤</div>
+        <label class="text-xs font-bold text-teal-600 cursor-pointer">Качи снимка
+          <input type="file" accept="image/*" class="hidden" onchange="uploadMyPhoto(event)">
+        </label>
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Име</label>
+        <input type="text" id="my-name-input" onchange="saveMyProfile()" class="w-full px-3 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Емоджи (ако няма снимка)</label>
         <div class="flex gap-2 flex-wrap" id="avatar-picker">
-          <button type="button" onclick="setMyAvatar('👨')" class="av-btn w-9 h-9 rounded-lg bg-white dark:bg-slate-700 text-lg border-2 border-transparent">👨</button>
-          <button type="button" onclick="setMyAvatar('👩')" class="av-btn w-9 h-9 rounded-lg bg-white dark:bg-slate-700 text-lg border-2 border-transparent">👩</button>
-          <button type="button" onclick="setMyAvatar('🧑')" class="av-btn w-9 h-9 rounded-lg bg-white dark:bg-slate-700 text-lg border-2 border-transparent">🧑</button>
-          <button type="button" onclick="setMyAvatar('🙂')" class="av-btn w-9 h-9 rounded-lg bg-white dark:bg-slate-700 text-lg border-2 border-transparent">🙂</button>
-          <button type="button" onclick="setMyAvatar('😎')" class="av-btn w-9 h-9 rounded-lg bg-white dark:bg-slate-700 text-lg border-2 border-transparent">😎</button>
+          <button type="button" onclick="setMyAvatar('👨')" class="av-btn w-9 h-9 rounded-lg bg-stone-100 dark:bg-slate-700 text-lg border-2 border-transparent">👨</button>
+          <button type="button" onclick="setMyAvatar('👩')" class="av-btn w-9 h-9 rounded-lg bg-stone-100 dark:bg-slate-700 text-lg border-2 border-transparent">👩</button>
+          <button type="button" onclick="setMyAvatar('🧑')" class="av-btn w-9 h-9 rounded-lg bg-stone-100 dark:bg-slate-700 text-lg border-2 border-transparent">🧑</button>
+          <button type="button" onclick="setMyAvatar('🙂')" class="av-btn w-9 h-9 rounded-lg bg-stone-100 dark:bg-slate-700 text-lg border-2 border-transparent">🙂</button>
+          <button type="button" onclick="setMyAvatar('😎')" class="av-btn w-9 h-9 rounded-lg bg-stone-100 dark:bg-slate-700 text-lg border-2 border-transparent">😎</button>
         </div>
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Цвят на твоите записи в лога</label>
         <div class="flex gap-2">
-          <button onclick="setMyColor('#0d9488')" class="w-7 h-7 rounded-full bg-teal-600"></button>
-          <button onclick="setMyColor('#0ea5e9')" class="w-7 h-7 rounded-full bg-sky-500"></button>
-          <button onclick="setMyColor('#8b5cf6')" class="w-7 h-7 rounded-full bg-violet-500"></button>
-          <button onclick="setMyColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500"></button>
+          <button onclick="setMyColor('#0d9488')" class="w-8 h-8 rounded-full bg-teal-600 ring-2 ring-offset-2 ring-transparent"></button>
+          <button onclick="setMyColor('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500"></button>
+          <button onclick="setMyColor('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
+          <button onclick="setMyColor('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
+          <button onclick="setMyColor('#ef4444')" class="w-8 h-8 rounded-full bg-red-500"></button>
         </div>
       </div>
     </div>
-    <button onclick="closeDrawer();openCustomize();" class="w-full text-left bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 text-sm font-medium flex justify-between">
-      <span>Персонализирай модулите</span><span class="text-slate-400">›</span>
-    </button>
-    <div class="bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 flex items-center justify-between">
-      <span class="text-sm font-medium">Тъмна тема</span>
-      <input type="checkbox" id="toggle-dark" onchange="toggleDarkMode()" class="w-4 h-4 rounded accent-teal-600">
+
+    <!-- Pet theme panel -->
+    <div id="drawer-pet" class="hidden space-y-3">
+      <div class="flex flex-col items-center gap-2">
+        <div id="pet-photo-preview" class="w-24 h-24 rounded-2xl bg-stone-200 dark:bg-slate-700 flex items-center justify-center text-4xl overflow-hidden border-2 border-teal-500">🐕</div>
+        <label class="text-xs font-bold text-teal-600 cursor-pointer">Качи снимка на любимеца
+          <input type="file" accept="image/*" class="hidden" onchange="uploadPetPhoto(event)">
+        </label>
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Акцентен цвят (тема)</label>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="setPetTheme('#0d9488')" class="w-8 h-8 rounded-full bg-teal-600"></button>
+          <button onclick="setPetTheme('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500"></button>
+          <button onclick="setPetTheme('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
+          <button onclick="setPetTheme('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
+          <button onclick="setPetTheme('#ec4899')" class="w-8 h-8 rounded-full bg-pink-500"></button>
+          <button onclick="setPetTheme('#ef4444')" class="w-8 h-8 rounded-full bg-red-500"></button>
+        </div>
+      </div>
     </div>
-    <div class="bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-3">
-      <label class="flex items-center justify-between text-sm"><span>Напомняне къпане</span>
-        <input type="checkbox" id="toggle-remind-bath" onchange="saveReminderSettings()" class="w-4 h-4 rounded accent-teal-600" checked></label>
-      <label class="flex items-center justify-between text-sm"><span>Напомняне обезпаразитяване</span>
-        <input type="checkbox" id="toggle-remind-deworm" onchange="saveReminderSettings()" class="w-4 h-4 rounded accent-teal-600" checked></label>
+
+    <!-- AI panel -->
+    <div id="drawer-ai" class="hidden space-y-3">
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Режим</label>
+        <select id="ai-mode" onchange="onAiModeChange(); saveAiSettings()" class="w-full px-3 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+          <option value="pet">Като любимеца</option>
+          <option value="custom">Персонализиран герой</option>
+          <option value="standard">Стандартен асистент</option>
+        </select>
+      </div>
+      <div id="ai-custom-fields" class="hidden space-y-2">
+        <input id="ai-custom-name" type="text" placeholder="Име (Мини, Грегъри…)" onchange="saveAiSettings()" class="w-full px-3 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+        <select id="ai-custom-type" onchange="saveAiSettings()" class="w-full px-3 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+          <option value="dog">Куче</option><option value="cat">Котка</option><option value="hamster">Хамстер</option>
+          <option value="rabbit">Заек</option><option value="bird">Птица</option><option value="other">Друго</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Стил</label>
+        <select id="ai-style" onchange="saveAiSettings()" class="w-full px-3 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+          <option value="friendly">Приятелски</option>
+          <option value="strict">Строг</option>
+          <option value="humor">Хумор</option>
+          <option value="playful">Игрив</option>
+          <option value="teasing">Закачлив</option>
+        </select>
+      </div>
+      <div id="ai-key-block">
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-[11px] font-semibold text-slate-400">API ключ</label>
+          <button type="button" onclick="toggleAiHelp()" class="text-[11px] font-bold text-teal-600">Помощ</button>
+        </div>
+        <div id="ai-help" class="hidden text-[11px] text-slate-500 bg-stone-50 dark:bg-slate-800 rounded-lg p-2.5 mb-2 border border-stone-200 dark:border-slate-700 leading-relaxed">
+          1. aistudio.google.com/apikey → Create API key<br>
+          2. Постави го тук (само създателят)<br>
+          3. Всички стопани могат да чатят
+        </div>
+        <input id="ai-api-key" type="password" placeholder="AIza…" class="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-xs outline-none">
+        <button onclick="saveAiApiKey()" id="ai-save-key-btn" class="mt-1.5 w-full py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold">Запази ключ</button>
+        <p id="ai-key-status" class="text-[10px] text-slate-400 mt-1"></p>
+      </div>
+      <button onclick="closeDrawer();openGeminiChat()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-bold">Отвори чата</button>
     </div>
-    <div class="bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-2">
-      <p class="text-xs text-slate-500">Код за покана</p>
+
+    <!-- Screen panel -->
+    <div id="drawer-screen" class="hidden space-y-3">
+      <button onclick="closeDrawer();openCustomize()" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 text-sm font-medium">
+        <span>Персонализирай модулите</span><span class="text-slate-400">›</span>
+      </button>
+      <div class="flex items-center justify-between p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60">
+        <span class="text-sm font-medium">Тъмна тема</span>
+        <input type="checkbox" id="toggle-dark" onchange="toggleDarkMode()" class="w-4 h-4 rounded accent-teal-600">
+      </div>
+      <div class="p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800/60 space-y-3">
+        <label class="flex items-center justify-between text-sm"><span>Напомняне къпане</span>
+          <input type="checkbox" id="toggle-remind-bath" onchange="saveReminderSettings()" class="w-4 h-4 rounded accent-teal-600" checked></label>
+        <label class="flex items-center justify-between text-sm"><span>Напомняне обезпаразитяване</span>
+          <input type="checkbox" id="toggle-remind-deworm" onchange="saveReminderSettings()" class="w-4 h-4 rounded accent-teal-600" checked></label>
+      </div>
+    </div>
+
+    <!-- Share panel -->
+    <div id="drawer-share" class="hidden space-y-3">
+      <p class="text-xs text-slate-500">Изпрати кода на партньор, за да се присъедини към любимеца.</p>
       <div class="flex gap-2">
-        <input type="text" id="share-code-display" readonly class="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 font-mono text-center font-bold tracking-widest text-teal-600 text-sm border border-stone-200 dark:border-slate-700">
-        <button onclick="copyShareCode()" class="px-3 py-2 rounded-lg bg-teal-600 text-white text-xs font-bold">Копирай</button>
+        <input type="text" id="share-code-display" readonly class="flex-1 px-3 py-3 rounded-xl bg-stone-50 dark:bg-slate-800 font-mono text-center font-bold tracking-widest text-teal-600 text-sm border border-stone-200 dark:border-slate-700">
+        <button onclick="copyShareCode()" class="px-4 py-3 rounded-xl bg-teal-600 text-white text-xs font-bold">Копирай</button>
       </div>
     </div>
-
-    <!-- AI settings -->
-    <div class="space-y-2">
-      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">AI асистент</p>
-      <div class="bg-stone-50 dark:bg-slate-800/60 rounded-xl p-3.5 space-y-3">
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Режим</label>
-          <select id="ai-mode" onchange="onAiModeChange(); saveAiSettings()" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-            <option value="pet">Като любимеца (Макс…)</option>
-            <option value="custom">Персонализиран герой</option>
-            <option value="standard">Стандартен асистент</option>
-          </select>
-        </div>
-        <div id="ai-custom-fields" class="hidden space-y-2">
-          <input id="ai-custom-name" type="text" placeholder="Име на героя (Мини, Грегъри…)" onchange="saveAiSettings()" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-          <select id="ai-custom-type" onchange="saveAiSettings()" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-            <option value="dog">Куче</option>
-            <option value="cat">Котка</option>
-            <option value="hamster">Хамстер</option>
-            <option value="rabbit">Заек</option>
-            <option value="bird">Птица</option>
-            <option value="other">Друго</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Стил на отговорите</label>
-          <select id="ai-style" onchange="saveAiSettings()" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none">
-            <option value="friendly">Приятелски (по подразбиране)</option>
-            <option value="strict">Строг / сериозен</option>
-            <option value="humor">С хумор</option>
-            <option value="playful">Игрив</option>
-            <option value="teasing">Закачлив</option>
-          </select>
-        </div>
-        <div id="ai-key-block">
-          <div class="flex items-center justify-between mb-1">
-            <label class="text-[11px] font-semibold text-slate-400">API ключ (само създателят)</label>
-            <button type="button" onclick="toggleAiHelp()" class="text-[11px] font-bold text-teal-600">Помощ</button>
-          </div>
-          <div id="ai-help" class="hidden text-[11px] text-slate-500 bg-white dark:bg-slate-900 rounded-lg p-2.5 mb-2 border border-stone-200 dark:border-slate-700 leading-relaxed">
-            1. Отвори <b>aistudio.google.com/apikey</b><br>
-            2. Влез с Google → <b>Create API key</b><br>
-            3. Копирай ключа и го постави тук<br>
-            4. Запази – ключът важи за <b>всички стопани</b> на този любимец<br>
-            <span class="text-amber-600">Само създателят на профила слага ключ. Другите само чатят.</span>
-          </div>
-          <input id="ai-api-key" type="password" placeholder="AIza… (не се показва на другите в ясен вид)" class="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none">
-          <button onclick="saveAiApiKey()" id="ai-save-key-btn" class="mt-1.5 w-full py-2 rounded-lg bg-amber-600 text-white text-xs font-bold">Запази ключ за семейството</button>
-          <p id="ai-key-status" class="text-[10px] text-slate-400 mt-1"></p>
-        </div>
-      </div>
-    </div>
-
-    <button onclick="logout()" class="w-full py-3 rounded-xl text-red-500 text-sm font-semibold border border-red-200 dark:border-red-900/50">Изход</button>
   </div>
 </div>
 

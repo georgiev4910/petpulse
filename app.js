@@ -427,21 +427,30 @@ function renderWidget(id) {
   }
 
   if (id === 'timeline') {
+    const typeColor = { walk: '#0ea5e9', meal: '#10b981', health: '#f59e0b' };
+    const weatherIcon = { sun: '☀️', cloud: '☁️', rain: '🌧️', snow: '❄️' };
     const list = [
-      ...(petData.walks || []).filter(w => w.date === todayStr).map(w => ({ ...w, type: 'walk', label: `Разходка ${w.duration || ''} мин` })),
+      ...(petData.walks || []).filter(w => w.date === todayStr).map(w => ({
+        ...w, type: 'walk',
+        label: `Разходка ${w.duration || ''} мин${w.weather ? ' ' + (weatherIcon[w.weather] || '') : ''}${w.place ? ' · ' + w.place : ''}`
+      })),
       ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({ ...m, type: 'meal', label: `Хранене ${m.amount || ''} г` })),
       ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: h.title }))
     ].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
     let body = list.length ? list.map(item => {
-      const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤', color: '#0d9488' };
+      const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤' };
+      const border = typeColor[item.type] || '#94a3b8';
       const av = u.photoURL
         ? `<img src="${u.photoURL}" class="w-8 h-8 rounded-full object-cover shrink-0" alt="">`
         : `<div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-base shrink-0">${u.avatar || '👤'}</div>`;
-      return `<div class="flex items-center gap-3 bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3 border-l-4" style="border-color:${u.color}">
+      const mapLink = item.lat && item.lng
+        ? `<a href="https://www.google.com/maps?q=${item.lat},${item.lng}" target="_blank" rel="noopener" class="text-[10px] text-sky-500 font-medium">Карта</a>`
+        : '';
+      return `<div class="flex items-center gap-3 bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3 border-l-4" style="border-color:${border}">
         ${av}
         <div class="flex-1 min-w-0"><div class="text-sm font-semibold">${item.label}</div>
-        <div class="text-[11px] text-slate-400">${item.time || ''} · ${u.name}</div></div>
+        <div class="text-[11px] text-slate-400">${item.time || ''} · ${u.name} ${mapLink}</div></div>
         <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>
       </div>`;
     }).join('') : `<p class="text-xs text-slate-400 text-center py-4">Няма записи днес</p>`;
@@ -692,10 +701,34 @@ function openModal(type) {
   const timeVal = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const today = now.toISOString().slice(0, 10);
   if (type === 'walk') {
-    body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
+    body.innerHTML = `
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Минути</label>
-      <input id="m-duration" type="number" placeholder="30" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>`;
+      <input id="m-duration" type="number" placeholder="30" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Време</label>
+        <div class="flex gap-2" id="weather-picker">
+          <button type="button" data-w="sun" onclick="selectWeather('sun')" class="weather-btn flex-1 py-3 rounded-xl border-2 border-sky-500 bg-sky-50 dark:bg-sky-950/30 text-xl">☀️</button>
+          <button type="button" data-w="cloud" onclick="selectWeather('cloud')" class="weather-btn flex-1 py-3 rounded-xl border-2 border-stone-200 dark:border-slate-700 text-xl">☁️</button>
+          <button type="button" data-w="rain" onclick="selectWeather('rain')" class="weather-btn flex-1 py-3 rounded-xl border-2 border-stone-200 dark:border-slate-700 text-xl">🌧️</button>
+          <button type="button" data-w="snow" onclick="selectWeather('snow')" class="weather-btn flex-1 py-3 rounded-xl border-2 border-stone-200 dark:border-slate-700 text-xl">❄️</button>
+        </div>
+      </div>
+      <div class="rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 p-3">
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-slate-400">Локация</label>
+          <button type="button" onclick="captureWalkLocation()" class="text-xs font-bold text-sky-500">📍 Вземи GPS</button>
+        </div>
+        <p id="m-place-label" class="text-sm text-slate-600 dark:text-slate-300">Натисни „Вземи GPS“ за автоматично място</p>
+        <input type="hidden" id="m-lat" value="">
+        <input type="hidden" id="m-lng" value="">
+        <input type="hidden" id="m-place" value="">
+        <div id="m-map-link" class="hidden mt-1"></div>
+      </div>`;
+    window._selectedWeather = 'sun';
+    // auto-try location
+    setTimeout(() => captureWalkLocation(true), 300);
   } else if (type === 'meal') {
     body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
@@ -729,6 +762,64 @@ function openModal(type) {
   }
   document.getElementById('modal').classList.remove('hidden');
 }
+
+function selectWeather(w) {
+  window._selectedWeather = w;
+  document.querySelectorAll('.weather-btn').forEach(btn => {
+    const on = btn.getAttribute('data-w') === w;
+    btn.classList.toggle('border-sky-500', on);
+    btn.classList.toggle('bg-sky-50', on);
+    btn.classList.toggle('dark:bg-sky-950/30', on);
+    btn.classList.toggle('border-stone-200', !on);
+    btn.classList.toggle('dark:border-slate-700', !on);
+  });
+}
+
+async function captureWalkLocation(silent) {
+  const label = document.getElementById('m-place-label');
+  const mapLink = document.getElementById('m-map-link');
+  if (!label) return;
+  if (!navigator.geolocation) {
+    if (!silent) label.textContent = 'GPS не се поддържа на това устройство';
+    return;
+  }
+  label.textContent = 'Определяне на локация…';
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true, timeout: 12000, maximumAge: 60000
+      });
+    });
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    document.getElementById('m-lat').value = lat;
+    document.getElementById('m-lng').value = lng;
+    // Reverse geocode via OpenStreetMap Nominatim (no API key)
+    let place = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+        { headers: { 'Accept-Language': 'bg' } }
+      );
+      const data = await res.json();
+      const a = data.address || {};
+      place = a.park || a.leisure || a.suburb || a.neighbourhood || a.road || a.city || a.town || a.village || data.name || place;
+      if (a.city || a.town) {
+        const city = a.city || a.town || a.village || '';
+        if (city && place !== city) place = `${place}, ${city}`;
+      }
+    } catch (e) { /* keep coords label */ }
+    document.getElementById('m-place').value = place;
+    label.textContent = place;
+    if (mapLink) {
+      mapLink.classList.remove('hidden');
+      mapLink.innerHTML = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="text-xs text-sky-500 font-semibold">Отвори в Google Maps →</a>`;
+    }
+  } catch (err) {
+    label.textContent = silent ? 'Локацията е по избор – натисни „Вземи GPS“' : 'Няма достъп до локация (разреши в браузъра)';
+  }
+}
+
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
   activeModalType = null;
@@ -739,6 +830,10 @@ async function saveModal() {
   if (activeModalType === 'walk') {
     item.time = document.getElementById('m-time').value;
     item.duration = document.getElementById('m-duration').value;
+    item.weather = window._selectedWeather || 'sun';
+    item.lat = parseFloat(document.getElementById('m-lat')?.value) || null;
+    item.lng = parseFloat(document.getElementById('m-lng')?.value) || null;
+    item.place = document.getElementById('m-place')?.value || '';
     petData.walks = [item, ...(petData.walks || [])];
   } else if (activeModalType === 'meal') {
     item.time = document.getElementById('m-time').value;

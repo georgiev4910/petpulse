@@ -1,15 +1,15 @@
 {
-  "name": "PetPulse",
+  "name": "PetPulse 2.0",
   "short_name": "PetPulse",
   "description": "Споделен интелигентен тракер за домашни любимци",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0ea5e9",
+  "background_color": "#f4f2ef",
+  "theme_color": "#0d9488",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230d9488'/><path d='M50 78c14-12 20-22 20-34a20 20 0 10-40 0c0 12 6 22 20 34z' fill='white' opacity='.95'/><circle cx='50' cy='42' r='8' fill='%230d9488'/></svg>",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

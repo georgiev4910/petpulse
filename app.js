@@ -508,52 +508,60 @@ function renderWidget(id, size) {
       ? `<img src="${petData.photoURL}" class="w-full h-full object-cover rounded-2xl" alt="">`
       : emoji;
     const healthToday = (petData.health || []).filter(h => h.date === todayStr).length;
-    return `<div class="w-full text-left bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
-      <button type="button" onclick="switchTab('pets')" class="w-full h-28 relative flex items-end p-4 text-left active:opacity-95" style="background:linear-gradient(135deg,${theme} 0%,${themeDark} 100%)">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)] pointer-events-none"></div>
-        <div class="relative flex items-center gap-3 w-full">
-          <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30 overflow-hidden">${avInner}</div>
+    return `<div class="w-full text-left card-v2 overflow-hidden col-span-2">
+      <button type="button" onclick="switchTab('pets')" class="w-full h-32 relative flex items-end p-5 text-left" style="background:linear-gradient(145deg,${theme} 0%,${themeDark} 100%)">
+        <div class="absolute inset-0 opacity-25 pointer-events-none" style="background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.45),transparent 45%)"></div>
+        <div class="relative flex items-center gap-3.5 w-full">
+          <div class="w-16 h-16 rounded-[1.15rem] bg-white/20 backdrop-blur-md text-white text-2xl flex items-center justify-center border border-white/25 overflow-hidden shadow-lg">${avInner}</div>
           <div class="text-white min-w-0 flex-1">
-            <div class="font-bold text-lg leading-tight">${petData.name || 'Любимец'}</div>
-            <div class="text-xs text-white/80">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
+            <div class="font-extrabold text-xl tracking-tight leading-tight">${petData.name || 'Любимец'}</div>
+            <div class="text-xs text-white/75 font-medium mt-0.5">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
           </div>
-          <div class="text-white/80 text-xs font-semibold shrink-0">Профил ›</div>
+          <div class="text-white/70 text-[11px] font-semibold shrink-0 px-2.5 py-1 rounded-full bg-white/15 border border-white/20">Профил</div>
         </div>
       </button>
-      <div class="grid grid-cols-3 divide-x divide-stone-100 dark:divide-slate-800">
-        <button type="button" onclick="openDayStats('meal')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
-          <div class="text-base font-extrabold" style="color:${theme}">${mealsToday}</div>
-          <div class="text-[10px] text-slate-400">храна</div>
+      <div class="grid grid-cols-3 divide-x divide-stone-100/80 dark:divide-slate-800">
+        <button type="button" onclick="openDayStats('meal')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
+          <div class="text-lg font-extrabold tracking-tight" style="color:${theme}">${mealsToday}</div>
+          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">храна</div>
         </button>
-        <button type="button" onclick="openDayStats('walk')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
-          <div class="text-base font-extrabold text-sky-500">${walksToday}</div>
-          <div class="text-[10px] text-slate-400">разходки</div>
+        <button type="button" onclick="openDayStats('walk')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
+          <div class="text-lg font-extrabold tracking-tight text-sky-500">${walksToday}</div>
+          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">разходки</div>
         </button>
-        <button type="button" onclick="openDayStats('health')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
-          <div class="text-base font-extrabold text-amber-500">${healthToday}</div>
-          <div class="text-[10px] text-slate-400">здраве</div>
+        <button type="button" onclick="openDayStats('health')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
+          <div class="text-lg font-extrabold tracking-tight text-amber-500">${healthToday}</div>
+          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">здраве</div>
         </button>
       </div>
     </div>`;
   }
 
   if (id === 'quick') {
-    return `<div class="grid grid-cols-2 gap-2.5">
-      <button onclick="openModal('meal')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
-        <span class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-xl shrink-0">🥣</span>
-        <span><span class="block font-bold text-sm">Хранене</span><span class="block text-[11px] text-slate-400">порция / награда</span></span>
+    return `<div class="grid grid-cols-2 gap-2.5 col-span-2">
+      <button onclick="openModal('meal')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
+        <span class="w-11 h-11 rounded-xl bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 4v16M8 8h8a3 3 0 010 6H8"/></svg>
+        </span>
+        <span><span class="block font-bold text-sm tracking-tight">Хранене</span><span class="block text-[11px] text-slate-400 font-medium">порция / награда</span></span>
       </button>
-      <button onclick="openModal('walk')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
-        <span class="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-xl shrink-0">🚶</span>
-        <span><span class="block font-bold text-sm">Разходка</span><span class="block text-[11px] text-slate-400">време · място</span></span>
+      <button onclick="openModal('walk')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
+        <span class="w-11 h-11 rounded-xl bg-sky-500/12 text-sky-600 flex items-center justify-center shrink-0">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M12 8v5l3 3M10 13l-2 6M14 13l2 6"/></svg>
+        </span>
+        <span><span class="block font-bold text-sm tracking-tight">Разходка</span><span class="block text-[11px] text-slate-400 font-medium">време · място</span></span>
       </button>
-      <button onclick="openModal('health')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
-        <span class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-xl shrink-0">💊</span>
-        <span><span class="block font-bold text-sm">Здраве</span><span class="block text-[11px] text-slate-400">ваксина · хапче</span></span>
+      <button onclick="openModal('health')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
+        <span class="w-11 h-11 rounded-xl bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 3h6v4H9zM10 7v14M14 7v14M8 11h8"/></svg>
+        </span>
+        <span><span class="block font-bold text-sm tracking-tight">Здраве</span><span class="block text-[11px] text-slate-400 font-medium">ваксина · хапче</span></span>
       </button>
-      <button onclick="openModal('hygiene')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
-        <span class="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-xl shrink-0">🛁</span>
-        <span><span class="block font-bold text-sm">Грижи</span><span class="block text-[11px] text-slate-400">къпане · нокти</span></span>
+      <button onclick="switchTab('health');setHealthSub('care')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
+        <span class="w-11 h-11 rounded-xl bg-violet-500/12 text-violet-600 flex items-center justify-center shrink-0">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 12h16M8 6v4M16 6v4M7 16c1.5 2 3 3 5 3s3.5-1 5-3"/></svg>
+        </span>
+        <span><span class="block font-bold text-sm tracking-tight">Грижи</span><span class="block text-[11px] text-slate-400 font-medium">къпане · нокти</span></span>
       </button>
     </div>`;
   }
@@ -646,9 +654,9 @@ function renderWidget(id, size) {
         }).join('')}
       </div>`;
     }
-    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
+    return `<div class="card-v2 p-4 col-span-2">
       <div class="flex items-center justify-between mb-1">
-        <h3 class="font-bold text-sm">Днес</h3>
+        <h3 class="font-bold text-sm tracking-tight">Днес</h3>
         <span class="text-[11px] text-slate-400 font-medium">${dateLabel}</span>
       </div>
       ${body}

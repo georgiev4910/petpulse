@@ -296,8 +296,17 @@ async function createPet() {
     hygiene: { bath: '', nails: '', ears: '', teeth: '' },
     weightHistory: [], code,
     members: [currentUser.uid],
+    creatorUid: currentUser.uid,
     usersMeta: { [currentUser.uid]: { name: myName, avatar: profile.avatar || '👤', photoURL: profile.photoURL || null, color: profile.color || '#0d9488' } },
-    walks: [], meals: [], health: []
+    walks: [], meals: [], health: [],
+    aiChat: [],
+    aiSettings: {
+      mode: 'pet',           // standard | pet | custom
+      customName: '',
+      customType: 'dog',     // dog | cat | hamster | other
+      style: 'friendly',     // friendly | strict | humor | playful | teasing
+      apiKey: ''             // only creator sets; shared for members
+    }
   };
   try {
     const ref = await db.collection('pets').add(newPet);
@@ -585,35 +594,88 @@ function renderApp() {
   });
 
   const hyg = petData.hygiene || {};
-  document.getElementById('hyg-bath').textContent = hyg.bath ? `${fmtDate(hyg.bath)} (${daysAgo(hyg.bath)})` : '—';
-  document.getElementById('hyg-nails').textContent = hyg.nails ? `${fmtDate(hyg.nails)} (${daysAgo(hyg.nails)})` : '—';
-  document.getElementById('hyg-ears').textContent = hyg.ears ? `${fmtDate(hyg.ears)} (${daysAgo(hyg.ears)})` : '—';
-  document.getElementById('hyg-teeth').textContent = hyg.teeth ? `${fmtDate(hyg.teeth)} (${daysAgo(hyg.teeth)})` : '—';
+  const setHyg = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ? `${fmtDate(val)} (${daysAgo(val)})` : '—'; };
+  setHyg('hyg-bath', hyg.bath);
+  setHyg('hyg-nails', hyg.nails);
+  setHyg('hyg-ears', hyg.ears);
+  setHyg('hyg-teeth', hyg.teeth);
 
   const wh = petData.weightHistory || [];
   const lastW = wh[0] || (petData.weight ? { weight: petData.weight } : null);
-  document.getElementById('weight-display').textContent = lastW ? `${lastW.weight} кг` : '— кг';
-  document.getElementById('weight-history').innerHTML = wh.slice(0, 4).map(w =>
+  const wd = document.getElementById('weight-display');
+  if (wd) wd.textContent = lastW ? `${lastW.weight} кг` : '— кг';
+  const whEl = document.getElementById('weight-history');
+  if (whEl) whEl.innerHTML = wh.slice(0, 4).map(w =>
     `<div class="flex justify-between"><span>${fmtDate(w.date)}</span><span class="font-medium">${w.weight} кг</span></div>`
   ).join('') || '';
 
-  const healthEl = document.getElementById('health-records-list');
-  const items = [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  healthEl.innerHTML = items.length ? items.map(h => `
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
-      <div class="flex justify-between gap-2">
-        <div>
-          <div class="font-bold text-sm">${h.title}${h.productName ? ' · ' + h.productName : ''}</div>
-          <div class="text-[11px] text-slate-400 mt-0.5">${fmtDate(h.date)}${h.nextDate ? ' → ' + fmtDate(h.nextDate) : ''}</div>
-          ${h.notes ? `<p class="text-xs mt-1.5 text-slate-600 dark:text-slate-300">${h.notes}</p>` : ''}
-        </div>
-        <button onclick="deleteItem('health','${h.id}')" class="text-slate-400 hover:text-red-500 text-sm">✕</button>
-      </div>
-    </div>`).join('') : `<p class="text-xs text-slate-400 text-center py-6">Няма здравни записи</p>`;
-
+  renderHealthLists();
   renderHomeWidgets();
   renderPetsList();
   renderFoodsList();
+}
+
+function classifyHealth(h) {
+  if (h.category) return h.category;
+  const t = ((h.title || '') + ' ' + (h.productName || '')).toLowerCase();
+  if (/ваксин|vaccine|rabies|рабиес|парвов|каре|лепто/.test(t)) return 'vaccine';
+  if (/обезпаразит|deworm|бълх|кърлеж|антипаразит|празицид|нексгард|бравекто|фронтлайн/.test(t)) return 'parasite';
+  if (/преглед|ветеринар|операц|хирург/.test(t)) return 'vet';
+  return 'other';
+}
+
+function healthCardHtml(h) {
+  return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm">
+    <div class="flex justify-between gap-2">
+      <div class="min-w-0">
+        <div class="font-bold text-sm">${h.title}${h.productName ? ' · ' + h.productName : ''}</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">${fmtDate(h.date)}${h.nextDate ? ' → следваща ' + fmtDate(h.nextDate) : ''}</div>
+        ${h.notes ? `<p class="text-xs mt-1 text-slate-600 dark:text-slate-300">${h.notes}</p>` : ''}
+      </div>
+      <button onclick="deleteItem('health','${h.id}')" class="text-slate-400 hover:text-red-500 text-sm shrink-0">✕</button>
+    </div>
+  </div>`;
+}
+
+function renderHealthLists() {
+  const items = [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const vaccines = items.filter(h => classifyHealth(h) === 'vaccine');
+  const parasites = items.filter(h => classifyHealth(h) === 'parasite');
+  const other = items.filter(h => !['vaccine', 'parasite'].includes(classifyHealth(h)));
+
+  const empty = (t) => `<p class="text-xs text-slate-400 text-center py-6">${t}</p>`;
+  const setList = (id, arr, emptyMsg) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = arr.length ? arr.map(healthCardHtml).join('') : empty(emptyMsg);
+  };
+  setList('health-recent-list', items.slice(0, 5), 'Няма записи още');
+  setList('health-vaccine-list', vaccines, 'Няма записани ваксини');
+  setList('health-parasite-list', parasites, 'Няма записано обезпаразитяване');
+  setList('health-other-list', other, 'Няма други здравни записи');
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = items.filter(h => h.nextDate && h.nextDate >= todayStr).sort((a, b) => a.nextDate.localeCompare(b.nextDate));
+  const nextEl = document.getElementById('next-health-summary');
+  if (nextEl) {
+    nextEl.textContent = upcoming[0] ? `${upcoming[0].title} · ${fmtDate(upcoming[0].nextDate)}` : 'Няма планирани';
+  }
+}
+
+let healthSub = 'overview';
+function setHealthSub(id) {
+  healthSub = id;
+  ['overview', 'vaccine', 'parasite', 'care'].forEach(s => {
+    document.getElementById('health-sub-' + s)?.classList.toggle('hidden', s !== id);
+    const btn = document.getElementById('hsub-' + s);
+    if (btn) {
+      btn.classList.toggle('bg-white', s === id);
+      btn.classList.toggle('dark:bg-slate-900', s === id);
+      btn.classList.toggle('shadow-sm', s === id);
+      btn.classList.toggle('text-teal-700', s === id);
+      btn.classList.toggle('text-slate-500', s !== id);
+    }
+  });
 }
 
 function foodCardHtml(f) {
@@ -912,15 +974,28 @@ function openModal(type) {
       });
     }, 50);
   } else if (type === 'health') {
-    body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Какво</label>
-      <input id="m-title" type="text" placeholder="Ваксина / Обезпаразитяване" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Продукт</label>
+    body.innerHTML = `
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Категория</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" data-cat="vaccine" onclick="window._healthCat='vaccine';document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('border-teal-500','bg-teal-50'));this.classList.add('border-teal-500','bg-teal-50')" class="py-2.5 rounded-xl border-2 border-teal-500 bg-teal-50 text-xs font-bold">💉 Ваксина</button>
+          <button type="button" data-cat="parasite" onclick="window._healthCat='parasite';document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('border-teal-500','bg-teal-50'));this.classList.add('border-teal-500','bg-teal-50')" class="py-2.5 rounded-xl border-2 border-stone-200 text-xs font-bold">🐛 Обезпаразитяване</button>
+          <button type="button" data-cat="vet" onclick="window._healthCat='vet';document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('border-teal-500','bg-teal-50'));this.classList.add('border-teal-500','bg-teal-50')" class="py-2.5 rounded-xl border-2 border-stone-200 text-xs font-bold">🏥 Преглед</button>
+          <button type="button" data-cat="other" onclick="window._healthCat='other';document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('border-teal-500','bg-teal-50'));this.classList.add('border-teal-500','bg-teal-50')" class="py-2.5 rounded-xl border-2 border-stone-200 text-xs font-bold">📋 Друго</button>
+        </div>
+      </div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Заглавие</label>
+      <input id="m-title" type="text" placeholder="напр. Рабиес / NexGard" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Продукт / лекарство</label>
       <input id="m-product" type="text" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Дата</label>
-      <input id="m-date" type="date" value="${today}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Следваща</label>
-      <input id="m-next" type="date" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-semibold text-slate-400 mb-1">Дата</label>
+        <input id="m-date" type="date" value="${today}" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+        <div><label class="block text-xs font-semibold text-slate-400 mb-1">Следваща</label>
+        <input id="m-next" type="date" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      </div>
       <textarea id="m-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>`;
+    window._healthCat = 'vaccine';
   } else if (type === 'hygiene') {
     const hyg = petData.hygiene || {};
     body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Къпане</label>
@@ -1099,6 +1174,7 @@ async function saveModal() {
     item.date = document.getElementById('m-date').value;
     item.nextDate = document.getElementById('m-next').value;
     item.notes = document.getElementById('m-notes').value;
+    item.category = window._healthCat || 'other';
     petData.health = [item, ...(petData.health || [])];
   } else if (activeModalType === 'hygiene') {
     petData.hygiene = {
@@ -1195,6 +1271,329 @@ function copyShareCode() {
   navigator.clipboard.writeText(el.value);
   alert('Кодът е копиран!');
 }
+
+// —— Pet AI chat (shared history + shared API key on pet document) ——
+
+function getAiSettings() {
+  const s = petData.aiSettings || {};
+  return {
+    mode: s.mode || 'pet',
+    customName: s.customName || '',
+    customType: s.customType || 'dog',
+    style: s.style || 'friendly',
+    apiKey: s.apiKey || ''
+  };
+}
+
+function isPetCreator() {
+  if (!currentUser) return false;
+  if (petData.creatorUid) return petData.creatorUid === currentUser.uid;
+  // fallback: first member
+  return (petData.members || [])[0] === currentUser.uid;
+}
+
+function typeEmoji(t) {
+  return ({ dog: '🐕', cat: '🐈', hamster: '🐹', rabbit: '🐰', bird: '🐦', other: '🐾' })[t] || '🐾';
+}
+function typeWord(t) {
+  return ({ dog: 'куче', cat: 'котка', hamster: 'хамстер', rabbit: 'заек', bird: 'птица', other: 'създание' })[t] || 'създание';
+}
+function petEmoji() {
+  return typeEmoji(petData.type || 'dog');
+}
+function petSpeciesWord() {
+  return typeWord(petData.type || 'dog');
+}
+
+function aiDisplayName() {
+  const s = getAiSettings();
+  if (s.mode === 'custom' && s.customName) return s.customName;
+  if (s.mode === 'standard') return 'Асистент';
+  return petData.name || 'Аз';
+}
+function aiDisplayEmoji() {
+  const s = getAiSettings();
+  if (s.mode === 'custom') return typeEmoji(s.customType);
+  if (s.mode === 'standard') return '✨';
+  return petEmoji();
+}
+
+function styleInstruction(style) {
+  const map = {
+    friendly: 'Тон: топъл, грижовен, спокоен. Говори като добър приятел.',
+    strict: 'Тон: строг, сериозен, кратък. Без шеги. Ясни правила и предупреждения.',
+    humor: 'Тон: с лек хумор и остроумие, но пак полезен. Уместни шеги.',
+    playful: 'Тон: игрив, енергичен, ентусиазиран. Много животински характер.',
+    teasing: 'Тон: закачлив, леко подигравателен с любов, но никога обиден. Леко заяждане към стопанина.'
+  };
+  return map[style] || map.friendly;
+}
+
+function buildPetPersonaPrompt() {
+  const s = getAiSettings();
+  const context = {
+    realPetName: petData.name, realType: petData.type, breed: petData.breed,
+    weight: petData.weight, birthdate: petData.birthdate, gender: petData.gender,
+    allergies: petData.allergies, habits: petData.habits,
+    foods: (petData.foods || []).filter(f => f.active && !f.archived).map(f => ({
+      name: f.name, type: f.type, notes: f.notes || ''
+    })),
+    recentHealth: (petData.health || []).slice(0, 10).map(h => ({
+      title: h.title, product: h.productName, date: h.date, next: h.nextDate, category: h.category
+    })),
+    hygiene: petData.hygiene,
+    recentWalks: (petData.walks || []).slice(0, 5).map(w => ({ date: w.date, min: w.duration, place: w.place, weather: w.weather }))
+  };
+
+  const styleLine = styleInstruction(s.style);
+
+  if (s.mode === 'standard') {
+    return `Ти си полезен асистент в приложението PetPulse за домашни любимци.
+Отговаряй на български. ${styleLine}
+Не се представяй като животно. Бъди ясен и практичен. При съмнение – препоръчай ветеринар.
+Данни за любимеца: ${JSON.stringify(context)}`;
+  }
+
+  const name = s.mode === 'custom' && s.customName ? s.customName : (petData.name || 'Аз');
+  const species = s.mode === 'custom' ? typeWord(s.customType) : petSpeciesWord();
+  const breedBit = (s.mode === 'pet' && petData.breed) ? ` (${petData.breed})` : '';
+
+  return `Ти си ${name}, ${species}${breedBit}. Говори ВИНАГИ в първо лице като ${name}, на български.
+Не казвай, че си AI, Gemini, език модел или робот. Ти си ${name}.
+${styleLine}
+Бъди кратък. Ако питат „мога ли да ти дам X“ – отговори от мое име с безопасен съвет.
+При сериозни медицински съмнения подскажи ветеринар, пак от мое лице.
+Реални факти за домашния любимец в приложението (използвай ги): ${JSON.stringify(context)}`;
+}
+
+function openGeminiChat() {
+  document.getElementById('gemini-screen').classList.remove('hidden');
+  const name = aiDisplayName();
+  document.getElementById('gemini-pet-name').textContent = name;
+  const av = document.getElementById('gemini-pet-avatar');
+  if (av) av.textContent = aiDisplayEmoji();
+  const key = getAiSettings().apiKey;
+  const row = document.getElementById('gemini-key-row');
+  row.classList.toggle('hidden', !!key);
+  const hint = document.getElementById('gemini-key-hint');
+  if (hint) {
+    hint.textContent = isPetCreator()
+      ? 'Няма API ключ. Като създател го сложи в Меню → AI асистент.'
+      : 'Създателят на любимеца още не е сложил API ключ. Кажи му да го направи в настройките.';
+  }
+  renderAiChat();
+}
+
+function closeGeminiChat() {
+  document.getElementById('gemini-screen').classList.add('hidden');
+}
+
+function renderAiChat() {
+  const box = document.getElementById('gemini-messages');
+  if (!box) return;
+  const name = aiDisplayName();
+  const emoji = aiDisplayEmoji();
+  const msgs = petData.aiChat || [];
+  if (!msgs.length) {
+    const s = getAiSettings();
+    const intro = s.mode === 'standard'
+      ? `Здравей! Аз съм асистентът за ${petData.name || 'любимеца'}. Питай за храна, здраве, навици…`
+      : `Здравей! Аз съм ${name}. Питай ме каквото искаш – храна, разходки, здраве…`;
+    box.innerHTML = `<div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 text-sm shadow-sm border border-stone-200/80 dark:border-slate-800">
+      <div class="font-semibold mb-1">${emoji} ${name}</div>
+      ${intro}
+      <br><span class="text-[11px] text-slate-400 mt-1 block">Чатът е общ за всички стопани. Не замествам ветеринар 🐾</span>
+    </div>`;
+    return;
+  }
+  box.innerHTML = msgs.map(m => {
+    if (m.role === 'user') {
+      return `<div class="flex justify-end"><div class="bg-teal-600 text-white rounded-2xl rounded-br-md px-3.5 py-2 text-sm max-w-[85%]">
+        <div class="text-[10px] text-white/70 mb-0.5">${escHtml(m.authorName || '')}</div>
+        ${escHtml(m.text)}
+      </div></div>`;
+    }
+    return `<div class="bg-white dark:bg-slate-900 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm border border-stone-200/80 dark:border-slate-800 max-w-[90%]">
+      <div class="text-[10px] font-bold text-amber-600 mb-1">${emoji} ${name}</div>
+      <div class="whitespace-pre-wrap">${escHtml(m.text)}</div>
+    </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleAiHelp() {
+  document.getElementById('ai-help')?.classList.toggle('hidden');
+}
+function onAiModeChange() {
+  const mode = document.getElementById('ai-mode')?.value;
+  document.getElementById('ai-custom-fields')?.classList.toggle('hidden', mode !== 'custom');
+}
+
+async function saveAiSettings() {
+  if (!currentPetId) return;
+  const prev = getAiSettings();
+  const aiSettings = {
+    mode: document.getElementById('ai-mode')?.value || 'pet',
+    customName: document.getElementById('ai-custom-name')?.value.trim() || '',
+    customType: document.getElementById('ai-custom-type')?.value || 'dog',
+    style: document.getElementById('ai-style')?.value || 'friendly',
+    apiKey: prev.apiKey // key saved separately
+  };
+  petData.aiSettings = aiSettings;
+  await db.collection('pets').doc(currentPetId).update({ aiSettings });
+  // reflect in open chat header
+  const n = aiDisplayName();
+  const e = aiDisplayEmoji();
+  const gn = document.getElementById('gemini-pet-name');
+  const av = document.getElementById('gemini-pet-avatar');
+  if (gn) gn.textContent = n;
+  if (av) av.textContent = e;
+  const bn = document.getElementById('ai-pet-btn-name');
+  const be = document.getElementById('ai-pet-btn-emoji');
+  if (bn) bn.textContent = n;
+  if (be) be.textContent = e;
+}
+
+async function saveAiApiKey() {
+  if (!currentPetId) return;
+  if (!isPetCreator()) {
+    return alert('Само създателят на любимеца може да зададе API ключ.');
+  }
+  const k = document.getElementById('ai-api-key')?.value.trim();
+  if (!k) return alert('Въведи API ключ');
+  const aiSettings = { ...getAiSettings(), apiKey: k };
+  petData.aiSettings = aiSettings;
+  await db.collection('pets').doc(currentPetId).update({ aiSettings });
+  document.getElementById('ai-api-key').value = '';
+  document.getElementById('ai-key-status').textContent = 'Ключът е записан. Нина и другите могат да чатят.';
+  document.getElementById('gemini-key-row')?.classList.add('hidden');
+}
+
+function syncAiSettingsUI() {
+  const s = getAiSettings();
+  const modeEl = document.getElementById('ai-mode');
+  const styleEl = document.getElementById('ai-style');
+  const nameEl = document.getElementById('ai-custom-name');
+  const typeEl = document.getElementById('ai-custom-type');
+  if (modeEl) modeEl.value = s.mode;
+  if (styleEl) styleEl.value = s.style;
+  if (nameEl) nameEl.value = s.customName;
+  if (typeEl) typeEl.value = s.customType;
+  onAiModeChange();
+  const keyBlock = document.getElementById('ai-key-block');
+  const status = document.getElementById('ai-key-status');
+  if (keyBlock) {
+    // Everyone can see status; only creator edits key
+    const creator = isPetCreator();
+    document.getElementById('ai-api-key')?.classList.toggle('hidden', !creator);
+    document.getElementById('ai-save-key-btn')?.classList.toggle('hidden', !creator);
+    if (status) {
+      status.textContent = s.apiKey
+        ? (creator ? 'Има записан ключ (споделен с членовете).' : 'Ключът е настроен от създателя – можеш да пишеш.')
+        : (creator ? 'Няма ключ – сложи го, за да работи чатът.' : 'Чакай създателят да сложи API ключ.');
+    }
+  }
+}
+
+async function sendGemini() {
+  const input = document.getElementById('gemini-input');
+  const text = input.value.trim();
+  if (!text || !currentPetId) return;
+  const key = getAiSettings().apiKey;
+  if (!key) {
+    document.getElementById('gemini-key-row')?.classList.remove('hidden');
+    const hint = document.getElementById('gemini-key-hint');
+    if (hint) {
+      hint.textContent = isPetCreator()
+        ? 'Сложи API ключ в Меню → AI асистент.'
+        : 'Създателят още не е сложил ключ.';
+    }
+    return;
+  }
+
+  const profile = getUserProfile();
+  const userMsg = {
+    id: 'c' + Date.now(),
+    role: 'user',
+    text,
+    authorUid: currentUser.uid,
+    authorName: profile.name || 'Стопанин',
+    createdAt: new Date().toISOString()
+  };
+  petData.aiChat = [...(petData.aiChat || []), userMsg].slice(-80);
+  input.value = '';
+  renderAiChat();
+  await db.collection('pets').doc(currentPetId).update({ aiChat: petData.aiChat });
+
+  const box = document.getElementById('gemini-messages');
+  const loading = document.createElement('div');
+  loading.className = 'text-xs text-slate-400 px-1';
+  loading.id = 'ai-loading';
+  loading.textContent = aiDisplayName() + ' мисли…';
+  box.appendChild(loading);
+  box.scrollTop = box.scrollHeight;
+
+  const history = (petData.aiChat || []).slice(-16).map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.text }]
+  }));
+  while (history.length && history[0].role !== 'user') history.shift();
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: buildPetPersonaPrompt() }] },
+        contents: history.length ? history : [{ role: 'user', parts: [{ text }] }]
+      })
+    });
+    const data = await res.json();
+    document.getElementById('ai-loading')?.remove();
+    if (!res.ok) {
+      alert('Грешка: ' + (data?.error?.message || res.statusText));
+      return;
+    }
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '…мм, не знам как да отговоря.';
+    const modelMsg = {
+      id: 'c' + Date.now() + 'a',
+      role: 'model',
+      text: reply,
+      createdAt: new Date().toISOString()
+    };
+    petData.aiChat = [...(petData.aiChat || []), modelMsg].slice(-80);
+    await db.collection('pets').doc(currentPetId).update({ aiChat: petData.aiChat });
+    renderAiChat();
+  } catch (e) {
+    document.getElementById('ai-loading')?.remove();
+    alert('Грешка: ' + e.message);
+  }
+}
+
+(function patchAiLabels() {
+  const prev = renderApp;
+  renderApp = function () {
+    prev();
+    const n = aiDisplayName();
+    const e = aiDisplayEmoji();
+    const bn = document.getElementById('ai-pet-btn-name');
+    const be = document.getElementById('ai-pet-btn-emoji');
+    if (bn) bn.textContent = n;
+    if (be) be.textContent = e;
+    syncAiSettingsUI();
+    if (!document.getElementById('gemini-screen')?.classList.contains('hidden')) {
+      document.getElementById('gemini-pet-name').textContent = n;
+      const av = document.getElementById('gemini-pet-avatar');
+      if (av) av.textContent = e;
+      renderAiChat();
+    }
+  };
+})();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

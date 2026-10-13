@@ -73,9 +73,90 @@ let widgetConfig = DEFAULT_WIDGETS.map(w => ({ ...w }));
 })();
 
 function hideAllScreens() {
-  ['splash','auth-screen','choice-screen','join-screen','newpet-screen','app','customize-screen'].forEach(id => {
+  ['splash','auth-screen','profile-setup-screen','choice-screen','join-screen','newpet-screen','app','customize-screen'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
+}
+
+let setupAvatar = '👤';
+let setupPhotoURL = null;
+
+async function signInWithGoogle() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('profile');
+    provider.addScope('email');
+    await auth.signInWithPopup(provider);
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user') return;
+    alert('Google вход неуспешен.\n\nВ Firebase Console → Authentication → Sign-in method включи Google и добави domain-а си в Authorized domains.\n\n' + (e.message || e.code));
+  }
+}
+
+async function signInWithFacebook() {
+  try {
+    const provider = new firebase.auth.FacebookAuthProvider();
+    provider.addScope('email');
+    provider.addScope('public_profile');
+    await auth.signInWithPopup(provider);
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user') return;
+    alert('Facebook вход неуспешен.\n\nТрябва Firebase → Authentication → Facebook (App ID + App Secret) + Facebook Developer app.\n\n' + (e.message || e.code));
+  }
+}
+
+function pickSetupAvatar(emoji) {
+  setupAvatar = emoji;
+  document.querySelectorAll('.setup-av').forEach(b => b.classList.toggle('border-teal-500', b.textContent.trim() === emoji));
+  if (!setupPhotoURL) {
+    document.getElementById('profile-setup-photo-fallback').textContent = emoji;
+  }
+}
+
+function showProfileSetup() {
+  hideAllScreens();
+  document.getElementById('profile-setup-screen').classList.remove('hidden');
+  const name = currentUser.displayName || currentUser.email?.split('@')[0] || '';
+  document.getElementById('profile-setup-name').value = name;
+  setupPhotoURL = currentUser.photoURL || null;
+  const img = document.getElementById('profile-setup-photo-img');
+  const fallback = document.getElementById('profile-setup-photo-fallback');
+  if (setupPhotoURL) {
+    img.src = setupPhotoURL;
+    img.classList.remove('hidden');
+    fallback.classList.add('hidden');
+  } else {
+    img.classList.add('hidden');
+    fallback.classList.remove('hidden');
+    fallback.textContent = setupAvatar;
+  }
+}
+
+function finishProfileSetup() {
+  const name = document.getElementById('profile-setup-name').value.trim() || currentUser.email?.split('@')[0] || 'Стопанин';
+  window._userProfile = {
+    name,
+    avatar: setupAvatar,
+    photoURL: setupPhotoURL,
+    color: '#0d9488'
+  };
+  localStorage.setItem('petpulse_user_profile_' + currentUser.uid, JSON.stringify(window._userProfile));
+  hideAllScreens();
+  document.getElementById('choice-screen').classList.remove('hidden');
+}
+
+function getUserProfile() {
+  if (window._userProfile) return window._userProfile;
+  try {
+    const raw = localStorage.getItem('petpulse_user_profile_' + currentUser.uid);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {
+    name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Стопанин',
+    avatar: '👤',
+    photoURL: currentUser.photoURL || null,
+    color: '#0d9488'
+  };
 }
 
 auth.onAuthStateChanged(async (user) => {
@@ -83,6 +164,19 @@ auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     widgetConfig = loadWidgets();
+    // Prefill profile from Google/FB
+    if (user.photoURL || user.displayName) {
+      const existing = localStorage.getItem('petpulse_user_profile_' + user.uid);
+      if (!existing) {
+        window._userProfile = {
+          name: user.displayName || user.email?.split('@')[0] || 'Стопанин',
+          avatar: '👤',
+          photoURL: user.photoURL || null,
+          color: '#0d9488'
+        };
+        localStorage.setItem('petpulse_user_profile_' + user.uid, JSON.stringify(window._userProfile));
+      }
+    }
     await checkUserState();
   } else {
     currentUser = null;
@@ -136,11 +230,16 @@ async function checkUserState() {
       startPetListener();
       return;
     }
-    hideAllScreens();
-    document.getElementById('choice-screen').classList.remove('hidden');
+    // No pets yet → personal profile first, then choice
+    const hasProfile = localStorage.getItem('petpulse_user_profile_' + currentUser.uid);
+    if (!hasProfile) {
+      showProfileSetup();
+    } else {
+      hideAllScreens();
+      document.getElementById('choice-screen').classList.remove('hidden');
+    }
   } catch (e) {
-    hideAllScreens();
-    document.getElementById('choice-screen').classList.remove('hidden');
+    showProfileSetup();
   }
 }
 
@@ -151,12 +250,12 @@ function backToChoice() {
 function showJoinForm() {
   hideAllScreens();
   document.getElementById('join-screen').classList.remove('hidden');
-  document.getElementById('join-my-name').value = currentUser.email.split('@')[0];
+  document.getElementById('join-my-name').value = getUserProfile().name;
 }
 function showNewPetForm() {
   hideAllScreens();
   document.getElementById('newpet-screen').classList.remove('hidden');
-  document.getElementById('np-my-name').value = currentUser.email.split('@')[0];
+  document.getElementById('np-my-name').value = getUserProfile().name;
   document.getElementById('np-name').value = 'Макс';
   document.getElementById('np-breed').value = 'Джак Ръсел териер';
   document.getElementById('np-weight').value = '7.2';
@@ -177,7 +276,8 @@ function selectPetType(type) {
 }
 
 async function createPet() {
-  const myName = document.getElementById('np-my-name').value.trim() || currentUser.email.split('@')[0];
+  const profile = getUserProfile();
+  const myName = document.getElementById('np-my-name').value.trim() || profile.name;
   const name = document.getElementById('np-name').value.trim();
   if (!name) return alert('Въведи име');
   const btn = document.getElementById('create-pet-btn');
@@ -197,7 +297,7 @@ async function createPet() {
     hygiene: { bath: '', nails: '', ears: '', teeth: '' },
     weightHistory: [], code,
     members: [currentUser.uid],
-    usersMeta: { [currentUser.uid]: { name: myName, avatar: '👤', color: '#0d9488' } },
+    usersMeta: { [currentUser.uid]: { name: myName, avatar: profile.avatar || '👤', photoURL: profile.photoURL || null, color: profile.color || '#0d9488' } },
     walks: [], meals: [], health: []
   };
   try {
@@ -212,7 +312,8 @@ async function createPet() {
 
 async function joinWithCode() {
   const code = document.getElementById('invite-code-input').value.trim().toUpperCase();
-  const myName = document.getElementById('join-my-name').value.trim() || currentUser.email.split('@')[0];
+  const profile = getUserProfile();
+  const myName = document.getElementById('join-my-name').value.trim() || profile.name;
   if (!code) return alert('Въведи код');
   try {
     const snap = await db.collection('pets').where('code', '==', code).limit(1).get();
@@ -222,7 +323,7 @@ async function joinWithCode() {
     const members = data.members || [];
     if (!members.includes(currentUser.uid)) members.push(currentUser.uid);
     const usersMeta = data.usersMeta || {};
-    usersMeta[currentUser.uid] = { name: myName, avatar: '👤', color: '#10b981' };
+    usersMeta[currentUser.uid] = { name: myName, avatar: profile.avatar || '👤', photoURL: profile.photoURL || null, color: profile.color || '#10b981' };
     await petDoc.ref.update({ members, usersMeta });
     currentPetId = petDoc.id;
     localStorage.setItem('petpulse_active_pet', currentPetId);
@@ -334,8 +435,11 @@ function renderWidget(id) {
     const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
     let body = list.length ? list.map(item => {
       const u = (petData.usersMeta || {})[item.authorUid] || { name: 'Стопанин', avatar: '👤', color: '#0d9488' };
+      const av = u.photoURL
+        ? `<img src="${u.photoURL}" class="w-8 h-8 rounded-full object-cover shrink-0" alt="">`
+        : `<div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-base shrink-0">${u.avatar || '👤'}</div>`;
       return `<div class="flex items-center gap-3 bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3 border-l-4" style="border-color:${u.color}">
-        <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-base shrink-0">${u.avatar || '👤'}</div>
+        ${av}
         <div class="flex-1 min-w-0"><div class="text-sm font-semibold">${item.label}</div>
         <div class="text-[11px] text-slate-400">${item.time || ''} · ${u.name}</div></div>
         <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>

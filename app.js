@@ -623,7 +623,8 @@ function renderHomeWidgets() {
     if (!content) return '';
     return `<div class="widget ${sizeClass(w.size)} ${sizeMinH(w.size)}" data-wid="${w.id}">${content}</div>`;
   }).join('');
-  host.className = 'pane active grid grid-cols-2 gap-2.5 content-start';
+  const isHome = host.classList.contains('active');
+  host.className = 'pane grid grid-cols-2 gap-2.5 content-start' + (isHome ? ' active' : '');
   host.innerHTML = html || `<p class="col-span-2 text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
 }
 
@@ -1591,6 +1592,82 @@ function syncAiSettingsUI() {
   }
 }
 
+function aiLoadingPhrase() {
+  const s = getAiSettings();
+  if (s.mode === 'standard') return 'Подготвям отговор…';
+  const t = s.mode === 'custom' ? s.customType : (petData.type || 'dog');
+  const map = {
+    dog: 'Превеждане от кучешки…',
+    cat: 'Превеждане от котешки…',
+    hamster: 'Превеждане от хамстерски…',
+    rabbit: 'Превеждане от заешки…',
+    bird: 'Превеждане от птичи…',
+    other: 'Превеждане от животински…'
+  };
+  return map[t] || 'Превеждане от животински…';
+}
+
+function extractGeminiText(data) {
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const texts = parts.filter(p => p.text && !p.thought).map(p => p.text);
+  if (texts.length) return texts.join('').trim();
+  return parts.map(p => p.text).filter(Boolean).join('').trim();
+}
+
+async function callGeminiApi(key, contents, systemText) {
+  const models = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
+  let lastErr = '';
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    // try with low/no thinking first; some models reject thinkingConfig
+    const configs = [
+      { temperature: 0.9, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+      { temperature: 0.9, maxOutputTokens: 1024 }
+    ];
+    for (const generationConfig of configs) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 40000);
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemText }] },
+            contents,
+            generationConfig
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+        if (!res.ok) {
+          lastErr = data?.error?.message || res.statusText;
+          if (/thinking|Unknown name|Invalid/i.test(lastErr)) continue; // try next config
+          if (/not found|no longer available|404/i.test(lastErr)) break; // next model
+          throw new Error(lastErr);
+        }
+        const reply = extractGeminiText(data);
+        if (!reply) {
+          lastErr = 'Празен отговор от модела';
+          continue;
+        }
+        return reply;
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.name === 'AbortError') {
+          lastErr = 'Времето изтече – опитай пак';
+          break;
+        }
+        lastErr = e.message || String(e);
+        if (/not found|no longer available/i.test(lastErr)) break;
+        if (/thinking|Unknown name/i.test(lastErr)) continue;
+        throw e;
+      }
+    }
+  }
+  throw new Error(lastErr || 'Няма наличен модел');
+}
+
 async function sendGemini() {
   const input = document.getElementById('gemini-input');
   const text = input.value.trim();
@@ -1619,13 +1696,19 @@ async function sendGemini() {
   petData.aiChat = [...(petData.aiChat || []), userMsg].slice(-80);
   input.value = '';
   renderAiChat();
-  await db.collection('pets').doc(currentPetId).update({ aiChat: petData.aiChat });
+  try {
+    await db.collection('pets').doc(currentPetId).update({ aiChat: petData.aiChat });
+  } catch (e) {
+    alert('Не можах да запиша съобщението: ' + e.message);
+    return;
+  }
 
   const box = document.getElementById('gemini-messages');
+  document.getElementById('ai-loading')?.remove();
   const loading = document.createElement('div');
-  loading.className = 'text-xs text-slate-400 px-1';
+  loading.className = 'text-xs text-amber-600 dark:text-amber-400 px-1 font-medium animate-pulse';
   loading.id = 'ai-loading';
-  loading.textContent = aiDisplayName() + ' мисли…';
+  loading.textContent = aiLoadingPhrase();
   box.appendChild(loading);
   box.scrollTop = box.scrollHeight;
 
@@ -1636,22 +1719,12 @@ async function sendGemini() {
   while (history.length && history[0].role !== 'user') history.shift();
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: buildPetPersonaPrompt() }] },
-        contents: history.length ? history : [{ role: 'user', parts: [{ text }] }]
-      })
-    });
-    const data = await res.json();
+    const reply = await callGeminiApi(
+      key,
+      history.length ? history : [{ role: 'user', parts: [{ text }] }],
+      buildPetPersonaPrompt()
+    );
     document.getElementById('ai-loading')?.remove();
-    if (!res.ok) {
-      alert('Грешка: ' + (data?.error?.message || res.statusText));
-      return;
-    }
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '…мм, не знам как да отговоря.';
     const modelMsg = {
       id: 'c' + Date.now() + 'a',
       role: 'model',

@@ -12,19 +12,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --pet:#0d9488;
-      --pet-dark:#0f766e;
-      --pet-soft:rgba(13,148,136,.12);
-      --pet-soft-2:rgba(13,148,136,.22);
-      --pet-ring:rgba(13,148,136,.35);
-      --surface:#f4f2ef;
+      --pet:#0f766e;
+      --pet-dark:#0b5c56;
+      --pet-soft:rgba(15,118,110,.10);
+      --pet-soft-2:rgba(15,118,110,.18);
+      --pet-ring:rgba(15,118,110,.28);
+      --surface:#f3f1ec;
       --card:#ffffff;
-      --ink:#0f172a;
+      --ink:#1a2332;
+      --muted:#6b7280;
     }
     .dark{
-      --surface:#0b1220;
-      --card:#111827;
+      --surface:#0c1219;
+      --card:#141c27;
       --ink:#f1f5f9;
+      --muted:#94a3b8;
     }
     *{box-sizing:border-box}
     body{
@@ -69,13 +71,48 @@
     /* v2 surfaces */
     .card-v2{
       background:var(--card);
-      border:1px solid rgba(15,23,42,.06);
-      border-radius:1.35rem;
-      box-shadow:0 4px 24px -6px rgba(15,23,42,.07);
+      border:1px solid rgba(26,35,50,.05);
+      border-radius:1.25rem;
+      box-shadow:0 2px 16px -4px rgba(26,35,50,.06);
       transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease;
     }
     .dark .card-v2{border-color:rgba(255,255,255,.06)}
     .card-v2:active{transform:scale(.985)}
+    .seg-tabs{
+      display:flex;gap:0.25rem;padding:0.25rem;
+      background:rgba(26,35,50,.05);border-radius:999px;
+    }
+    .dark .seg-tabs{background:rgba(255,255,255,.06)}
+    .seg-tabs button{
+      flex:1;padding:0.55rem 0.4rem;border-radius:999px;
+      font-size:11px;font-weight:700;color:var(--muted);
+      transition:all .2s ease;
+    }
+    .seg-tabs button.on{
+      background:var(--card);color:var(--pet);
+      box-shadow:0 2px 8px rgba(26,35,50,.08);
+    }
+    .icon-tile{
+      display:flex;flex-direction:column;align-items:center;gap:0.35rem;
+      padding:0.85rem 0.4rem;border-radius:1rem;
+      background:var(--card);border:1px solid rgba(26,35,50,.05);
+      transition:transform .15s ease,box-shadow .15s ease;
+    }
+    .icon-tile:active{transform:scale(.96)}
+    .icon-tile .ic{
+      width:2.5rem;height:2.5rem;border-radius:0.85rem;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .timeline-dot{width:0.65rem;height:0.65rem;border-radius:50%;flex-shrink:0;margin-top:0.3rem}
+    .photo-hero{
+      position:relative;border-radius:1.35rem;overflow:hidden;
+      min-height:11.5rem;
+    }
+    .photo-hero img{width:100%;height:100%;object-fit:cover;min-height:11.5rem}
+    .photo-hero .veil{
+      position:absolute;inset:0;
+      background:linear-gradient(to top,rgba(15,23,42,.72) 0%,rgba(15,23,42,.15) 45%,transparent 70%);
+    }
     .widget{animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both}
     .widget:nth-child(1){animation-delay:.02s}
     .widget:nth-child(2){animation-delay:.05s}
@@ -303,12 +340,12 @@
         <button onclick="openModal('health')" class="px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold">+ Запис</button>
       </div>
       <!-- Sub tabs -->
-      <div class="flex gap-1 p-1 bg-stone-200/60 dark:bg-slate-800 rounded-xl overflow-x-auto">
-        <button onclick="setHealthSub('overview')" id="hsub-overview" class="hsub flex-1 min-w-[4.2rem] py-2 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-900 shadow-sm text-teal-700">Преглед</button>
-        <button onclick="setHealthSub('vaccine')" id="hsub-vaccine" class="hsub flex-1 min-w-[4.2rem] py-2 rounded-lg text-[11px] font-bold text-slate-500">Ваксини</button>
-        <button onclick="setHealthSub('parasite')" id="hsub-parasite" class="hsub flex-1 min-w-[4.2rem] py-2 rounded-lg text-[11px] font-bold text-slate-500">Паразити</button>
-        <button onclick="setHealthSub('meds')" id="hsub-meds" class="hsub flex-1 min-w-[4.2rem] py-2 rounded-lg text-[11px] font-bold text-slate-500">Лек-ва</button>
-        <button onclick="setHealthSub('care')" id="hsub-care" class="hsub flex-1 min-w-[4.2rem] py-2 rounded-lg text-[11px] font-bold text-slate-500">Грижи</button>
+      <div class="seg-tabs overflow-x-auto">
+        <button onclick="setHealthSub('overview')" id="hsub-overview" class="hsub on">Преглед</button>
+        <button onclick="setHealthSub('vaccine')" id="hsub-vaccine" class="hsub">Ваксини</button>
+        <button onclick="setHealthSub('parasite')" id="hsub-parasite" class="hsub">Паразити</button>
+        <button onclick="setHealthSub('meds')" id="hsub-meds" class="hsub">Лек-ва</button>
+        <button onclick="setHealthSub('care')" id="hsub-care" class="hsub">Грижи</button>
       </div>
 
       <div id="health-sub-overview" class="space-y-3">

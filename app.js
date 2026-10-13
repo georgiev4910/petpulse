@@ -508,61 +508,53 @@ function renderWidget(id, size) {
       ? `<img src="${petData.photoURL}" class="w-full h-full object-cover rounded-2xl" alt="">`
       : emoji;
     const healthToday = (petData.health || []).filter(h => h.date === todayStr).length;
-    return `<div class="w-full text-left card-v2 overflow-hidden col-span-2">
-      <button type="button" onclick="switchTab('pets')" class="w-full h-32 relative flex items-end p-5 text-left" style="background:linear-gradient(145deg,${theme} 0%,${themeDark} 100%)">
-        <div class="absolute inset-0 opacity-25 pointer-events-none" style="background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.45),transparent 45%)"></div>
-        <div class="relative flex items-center gap-3.5 w-full">
-          <div class="w-16 h-16 rounded-[1.15rem] bg-white/20 backdrop-blur-md text-white text-2xl flex items-center justify-center border border-white/25 overflow-hidden shadow-lg">${avInner}</div>
-          <div class="text-white min-w-0 flex-1">
-            <div class="font-extrabold text-xl tracking-tight leading-tight">${petData.name || 'Любимец'}</div>
-            <div class="text-xs text-white/75 font-medium mt-0.5">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
-          </div>
-          <div class="text-white/70 text-[11px] font-semibold shrink-0 px-2.5 py-1 rounded-full bg-white/15 border border-white/20">Профил</div>
+    const photoBlock = petData.photoURL
+      ? `<img src="${petData.photoURL}" alt="">`
+      : `<div class="w-full min-h-[11.5rem] flex items-center justify-center text-5xl" style="background:linear-gradient(145deg,${theme},${themeDark})">${emoji}</div>`;
+    return `<div class="col-span-2 space-y-3">
+      <button type="button" onclick="switchTab('pets')" class="photo-hero w-full text-left shadow-soft">
+        ${photoBlock}
+        <div class="veil"></div>
+        <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
+          <div class="font-extrabold text-2xl tracking-tight">${petData.name || 'Любимец'}</div>
+          <div class="text-sm text-white/85 font-medium">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
         </div>
       </button>
-      <div class="grid grid-cols-3 divide-x divide-stone-100/80 dark:divide-slate-800">
-        <button type="button" onclick="openDayStats('meal')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
+      <div class="grid grid-cols-3 gap-2">
+        <button type="button" onclick="openDayStats('meal')" class="card-v2 py-3 text-center">
           <div class="text-lg font-extrabold tracking-tight" style="color:${theme}">${mealsToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">храна</div>
+          <div class="text-[10px] font-semibold text-slate-400">Храна</div>
         </button>
-        <button type="button" onclick="openDayStats('walk')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
-          <div class="text-lg font-extrabold tracking-tight text-sky-500">${walksToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">разходки</div>
+        <button type="button" onclick="openDayStats('walk')" class="card-v2 py-3 text-center">
+          <div class="text-lg font-extrabold tracking-tight text-sky-600">${walksToday}</div>
+          <div class="text-[10px] font-semibold text-slate-400">Разходки</div>
         </button>
-        <button type="button" onclick="openDayStats('health')" class="py-3.5 text-center active:bg-stone-50/80 dark:active:bg-slate-800/80 transition">
-          <div class="text-lg font-extrabold tracking-tight text-amber-500">${healthToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">здраве</div>
+        <button type="button" onclick="openDayStats('health')" class="card-v2 py-3 text-center">
+          <div class="text-lg font-extrabold tracking-tight text-amber-600">${healthToday}</div>
+          <div class="text-[10px] font-semibold text-slate-400">Здраве</div>
         </button>
       </div>
     </div>`;
   }
 
   if (id === 'quick') {
-    return `<div class="grid grid-cols-2 gap-2.5 col-span-2">
-      <button onclick="openModal('meal')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
-        <span class="w-11 h-11 rounded-xl bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 4v16M8 8h8a3 3 0 010 6H8"/></svg>
-        </span>
-        <span><span class="block font-bold text-sm tracking-tight">Хранене</span><span class="block text-[11px] text-slate-400 font-medium">порция / награда</span></span>
-      </button>
-      <button onclick="openModal('walk')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
-        <span class="w-11 h-11 rounded-xl bg-sky-500/12 text-sky-600 flex items-center justify-center shrink-0">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M12 8v5l3 3M10 13l-2 6M14 13l2 6"/></svg>
-        </span>
-        <span><span class="block font-bold text-sm tracking-tight">Разходка</span><span class="block text-[11px] text-slate-400 font-medium">време · място</span></span>
-      </button>
-      <button onclick="openModal('health')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
-        <span class="w-11 h-11 rounded-xl bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 3h6v4H9zM10 7v14M14 7v14M8 11h8"/></svg>
-        </span>
-        <span><span class="block font-bold text-sm tracking-tight">Здраве</span><span class="block text-[11px] text-slate-400 font-medium">ваксина · хапче</span></span>
-      </button>
-      <button onclick="switchTab('health');setHealthSub('care')" class="card-v2 flex items-center gap-3 p-3.5 text-left">
-        <span class="w-11 h-11 rounded-xl bg-violet-500/12 text-violet-600 flex items-center justify-center shrink-0">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 12h16M8 6v4M16 6v4M7 16c1.5 2 3 3 5 3s3.5-1 5-3"/></svg>
-        </span>
-        <span><span class="block font-bold text-sm tracking-tight">Грижи</span><span class="block text-[11px] text-slate-400 font-medium">къпане · нокти</span></span>
-      </button>
+    const tile = (fn, color, svg, label) =>
+      `<button onclick="${fn}" class="icon-tile">
+        <span class="ic" style="background:${color}18;color:${color}">${svg}</span>
+        <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">${label}</span>
+      </button>`;
+    const sBowl = `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 12c0 4 3.5 7 8 7s8-3 8-7H4zM6 12V9a6 6 0 0112 0v3"/></svg>`;
+    const sWalk = `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 8v4l3 2M10 12l-2 7M14 12l2 7"/></svg>`;
+    const sHealth = `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/><rect x="4" y="4" width="16" height="16" rx="4"/></svg>`;
+    const sCare = `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M8 4h8l1 4H7l1-4zM9 8v10M15 8v10M7 18h10"/></svg>`;
+    return `<div class="col-span-2">
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-0.5">Бързи действия</div>
+      <div class="grid grid-cols-4 gap-2">
+        ${tile("openModal('meal')", '#059669', sBowl, 'Храна')}
+        ${tile("openModal('walk')", '#0284c7', sWalk, 'Разходка')}
+        ${tile("openModal('health')", '#d97706', sHealth, 'Ветеринар')}
+        ${tile("switchTab('health');setHealthSub('care')", '#7c3aed', sCare, 'Грижи')}
+      </div>
     </div>`;
   }
 
@@ -620,33 +612,32 @@ function renderWidget(id, size) {
     ].sort((a, b) => (a.time || a.createdAt || '').localeCompare(b.time || b.createdAt || ''));
     const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'long', day: 'numeric', month: 'long' });
     let body;
+    const dotColor = { walk: '#0284c7', meal: '#059669', health: '#d97706', plan: '#7c3aed' };
     if (!list.length) {
       body = `<div class="text-center py-6">
-        <div class="text-2xl mb-1">📭</div>
         <p class="text-xs text-slate-400">Все още тихо днес</p>
         <button onclick="toggleFab()" class="mt-2 text-xs font-bold text-teal-600">+ Добави запис</button>
       </div>`;
     } else {
-      body = `<div class="relative pl-3 space-y-0">
-        <div class="absolute left-[19px] top-2 bottom-2 w-0.5 bg-stone-200 dark:bg-slate-700"></div>
+      body = `<div class="space-y-0">
         ${list.map(item => {
-          const tm = typeMeta[item.type] || typeMeta.plan;
           const u = (petData.usersMeta || {})[item.authorUid] || {};
-          return `<div class="relative flex gap-3 py-2.5">
-            <div class="relative z-10 w-9 h-9 rounded-full ${tm.bg} flex items-center justify-center text-base shrink-0 border-2 border-white dark:border-slate-900">${tm.icon}</div>
-            <div class="flex-1 min-w-0 pt-0.5">
+          const c = dotColor[item.type] || '#94a3b8';
+          return `<div class="flex gap-3 py-2.5 border-b border-stone-100/80 dark:border-slate-800 last:border-0">
+            <div class="timeline-dot mt-1.5" style="background:${c};box-shadow:0 0 0 3px ${c}22"></div>
+            <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <div class="text-sm font-bold leading-tight">${item.title}</div>
+                  <div class="text-sm font-bold tracking-tight">${item.title}</div>
                   ${item.sub ? `<div class="text-[11px] text-slate-500 mt-0.5">${item.sub}</div>` : ''}
-                  <div class="text-[10px] text-slate-400 mt-0.5">${item.time || '—'} · ${u.name || 'Стопанин'}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-medium">${item.time || '—'} · ${u.name || 'Стопанин'}</div>
                 </div>
                 <div class="flex gap-1 shrink-0">
                   ${item.type !== 'plan'
-                    ? `<button onclick="editItem('${item.type}','${item.id}')" class="text-slate-400 hover:text-teal-600 text-[11px] font-bold px-1">✎</button>
-                       <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-300 hover:text-red-500 text-xs px-1">✕</button>`
-                    : `<button onclick="editPlan('${item.id}')" class="text-slate-400 hover:text-teal-600 text-[11px] font-bold px-1">✎</button>
-                       <button onclick="deletePlan('${item.id}')" class="text-slate-300 hover:text-red-500 text-xs px-1">✕</button>`}
+                    ? `<button onclick="editItem('${item.type}','${item.id}')" class="text-slate-400 text-[11px] font-bold px-1">✎</button>
+                       <button onclick="deleteItem('${item.type}','${item.id}')" class="text-slate-300 text-xs px-1">✕</button>`
+                    : `<button onclick="editPlan('${item.id}')" class="text-slate-400 text-[11px] font-bold px-1">✎</button>
+                       <button onclick="deletePlan('${item.id}')" class="text-slate-300 text-xs px-1">✕</button>`}
                 </div>
               </div>
             </div>
@@ -655,7 +646,7 @@ function renderWidget(id, size) {
       </div>`;
     }
     return `<div class="card-v2 p-4 col-span-2">
-      <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center justify-between mb-2">
         <h3 class="font-bold text-sm tracking-tight">Днес</h3>
         <span class="text-[11px] text-slate-400 font-medium">${dateLabel}</span>
       </div>
@@ -1007,13 +998,7 @@ function setHealthSub(id) {
   ['overview', 'vaccine', 'parasite', 'meds', 'care'].forEach(s => {
     document.getElementById('health-sub-' + s)?.classList.toggle('hidden', s !== id);
     const btn = document.getElementById('hsub-' + s);
-    if (btn) {
-      btn.classList.toggle('bg-white', s === id);
-      btn.classList.toggle('dark:bg-slate-900', s === id);
-      btn.classList.toggle('shadow-sm', s === id);
-      btn.classList.toggle('text-teal-700', s === id);
-      btn.classList.toggle('text-slate-500', s !== id);
-    }
+    if (btn) btn.classList.toggle('on', s === id);
   });
   if (id === 'meds') renderMedsList();
 }

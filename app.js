@@ -764,6 +764,14 @@ function renderApp() {
   document.getElementById('pet-chip').value = petData.chip || '';
   document.getElementById('pet-allergies').value = petData.allergies || '';
   document.getElementById('pet-habits').value = petData.habits || '';
+  const neut = document.getElementById('pet-neutered');
+  if (neut) neut.value = petData.neutered || 'unknown';
+  const wg = document.getElementById('pet-walk-goal');
+  if (wg) wg.value = petData.walkGoalMinutes || '';
+  const ch = document.getElementById('pet-chronic');
+  if (ch) ch.value = petData.chronic || '';
+  const ft = document.getElementById('pet-feed-times');
+  if (ft) ft.value = petData.feedTimes || '';
 
   const meta = (petData.usersMeta || {})[currentUser.uid] || {};
   document.getElementById('my-name-input').value = meta.name || '';
@@ -819,6 +827,7 @@ function healthCardHtml(h, detailed) {
           Направено: ${fmtDate(h.date)}${h.nextDate ? ` · Следваща: ${fmtDate(h.nextDate)}` : ''}
         </div>
         ${detailed && h.notes ? `<p class="text-xs mt-1.5 text-slate-600 dark:text-slate-300">${h.notes}</p>` : (h.notes ? `<p class="text-xs mt-1 text-slate-600 dark:text-slate-300 line-clamp-2">${h.notes}</p>` : '')}
+        ${h.docPhoto ? `<img src="${h.docPhoto}" class="mt-2 max-h-28 rounded-lg border border-stone-200 dark:border-slate-700" alt="документ">` : ''}
         ${detailed && u.name ? `<div class="text-[10px] text-slate-400 mt-1">записано от ${u.name}</div>` : ''}
       </div>
       <div class="flex flex-col gap-1 shrink-0">
@@ -919,12 +928,18 @@ function renderHealthLists() {
       <div class="text-slate-400 mt-1">${parasites.length} записа общо</div>`;
   }
 
-  // hygiene ago secondary lines
+  // hygiene ago + next
   const hyg = petData.hygiene || {};
+  const hygNext = petData.hygieneNext || {};
   ['bath', 'nails', 'ears', 'teeth'].forEach(k => {
     const el = document.getElementById('hyg-' + k + '-ago');
     if (el) el.textContent = hyg[k] ? (daysAgo(hyg[k]) || '') : '';
+    const n = document.getElementById('hyg-' + k + '-next');
+    if (n) n.textContent = hygNext[k] ? 'следващо: ' + fmtDate(hygNext[k]) : '';
   });
+  renderMedsList();
+  renderSymptomsList();
+  renderEmergencySummary();
 }
 
 function openDayStats(kind) {
@@ -981,7 +996,7 @@ function closeDayStats() {
 let healthSub = 'overview';
 function setHealthSub(id) {
   healthSub = id;
-  ['overview', 'vaccine', 'parasite', 'care'].forEach(s => {
+  ['overview', 'vaccine', 'parasite', 'meds', 'care'].forEach(s => {
     document.getElementById('health-sub-' + s)?.classList.toggle('hidden', s !== id);
     const btn = document.getElementById('hsub-' + s);
     if (btn) {
@@ -992,6 +1007,7 @@ function setHealthSub(id) {
       btn.classList.toggle('text-slate-500', s !== id);
     }
   });
+  if (id === 'meds') renderMedsList();
 }
 
 function foodCardHtml(f) {
@@ -1043,6 +1059,7 @@ function renderFoodsList() {
 
 function openAddFoodModal() {
   activeModalType = 'addfood';
+  window._foodPhoto = null;
   document.getElementById('modal-title').textContent = 'Нова храна / награда';
   document.getElementById('modal-body').innerHTML = `
     <div>
@@ -1054,11 +1071,17 @@ function openAddFoodModal() {
     </div>
     <div>
       <label class="block text-xs font-semibold text-slate-400 mb-1">Име / марка</label>
-      <input id="m-food-name" type="text" placeholder="напр. Royal Canin Mini Puppy" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      <input id="m-food-name" type="text" placeholder="започни да пишеш…" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none" oninput="searchProductAI(this.value,'food')">
+      <div id="ai-product-results" class="mt-1 space-y-1 max-h-28 overflow-y-auto hidden"></div>
     </div>
     <div>
       <label class="block text-xs font-semibold text-slate-400 mb-1">Чувал (кг) – по избор</label>
       <input id="m-food-bag" type="number" step="0.5" placeholder="12" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Снимка на опаковката</label>
+      <input type="file" accept="image/*" class="w-full text-xs" onchange="handleFoodPhoto(this)">
+      <div id="m-food-photo-preview" class="mt-2 hidden"><img class="max-h-24 rounded-lg" alt=""></div>
     </div>
     <div>
       <label class="block text-xs font-semibold text-slate-400 mb-1">Бележка (по избор)</label>
@@ -1252,7 +1275,11 @@ async function savePetDetails() {
     passport: document.getElementById('pet-passport').value.trim(),
     chip: document.getElementById('pet-chip').value.trim(),
     allergies: document.getElementById('pet-allergies').value.trim(),
-    habits: document.getElementById('pet-habits').value.trim()
+    habits: document.getElementById('pet-habits').value.trim(),
+    neutered: document.getElementById('pet-neutered')?.value || 'unknown',
+    walkGoalMinutes: parseInt(document.getElementById('pet-walk-goal')?.value, 10) || null,
+    chronic: document.getElementById('pet-chronic')?.value.trim() || '',
+    feedTimes: document.getElementById('pet-feed-times')?.value.trim() || ''
   };
   Object.assign(petData, payload);
   await db.collection('pets').doc(currentPetId).update(payload);
@@ -1347,18 +1374,29 @@ function openModal(type) {
         <div><label class="block text-xs font-semibold text-slate-400 mb-1">Следваща</label>
         <input id="m-next" type="date" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
       </div>
-      <textarea id="m-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>`;
+      <textarea id="m-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Документ / снимка (по избор)</label>
+        <input id="m-health-doc" type="file" accept="image/*" class="w-full text-xs" onchange="handleHealthDoc(this)">
+        <div id="m-health-doc-preview" class="mt-2 hidden"><img class="max-h-24 rounded-lg" alt=""></div>
+      </div>`;
     window._healthCat = 'vaccine';
-  } else if (type === 'hygiene') {
+    window._healthDocPhoto = null;
+  } else if (type === 'careitem') {
+    const key = window._careKey || 'bath';
+    const labels = { bath: 'Къпане', nails: 'Нокти', ears: 'Уши', teeth: 'Зъби' };
     const hyg = petData.hygiene || {};
-    body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Къпане</label>
-      <input id="m-bath" type="date" value="${hyg.bath||''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Нокти</label>
-      <input id="m-nails" type="date" value="${hyg.nails||''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Уши</label>
-      <input id="m-ears" type="date" value="${hyg.ears||''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Зъби</label>
-      <input id="m-teeth" type="date" value="${hyg.teeth||''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>`;
+    const intervals = petData.hygieneInterval || {};
+    const nextMap = petData.hygieneNext || {};
+    document.getElementById('modal-title').textContent = labels[key] || 'Грижа';
+    body.innerHTML = `
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Направено на</label>
+      <input id="m-care-date" type="date" value="${hyg[key] || today}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Повтаряй на всеки (дни)</label>
+      <input id="m-care-interval" type="number" placeholder="напр. 60 за 2 месеца" value="${intervals[key] || ''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Следваща планирана дата</label>
+      <input id="m-care-next" type="date" value="${nextMap[key] || ''}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <p class="text-[11px] text-slate-400">Ако попълниш интервал, следващата дата се смята автоматично от „Направено на“.</p>`;
   } else if (type === 'weight') {
     body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Тегло (кг)</label>
       <input id="m-weight" type="number" step="0.1" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
@@ -1576,19 +1614,40 @@ async function saveModal() {
     item.nextDate = document.getElementById('m-next').value;
     item.notes = document.getElementById('m-notes').value;
     item.category = window._healthCat || 'other';
+    item.docPhoto = window._healthDocPhoto || null;
+    // auto next if empty
+    if (!item.nextDate && item.date) {
+      const days = item.category === 'parasite' ? 90 : (item.category === 'vaccine' ? 365 : 0);
+      if (days) {
+        const d = new Date(item.date + 'T00:00:00');
+        d.setDate(d.getDate() + days);
+        item.nextDate = d.toISOString().slice(0, 10);
+      }
+    }
     if (window._editId) {
       const eid = window._editId;
       petData.health = (petData.health || []).map(h => h.id === eid ? { ...h, ...item, id: eid } : h);
     } else {
       petData.health = [item, ...(petData.health || [])];
     }
-  } else if (activeModalType === 'hygiene') {
-    petData.hygiene = {
-      bath: document.getElementById('m-bath').value || (petData.hygiene || {}).bath || '',
-      nails: document.getElementById('m-nails').value || (petData.hygiene || {}).nails || '',
-      ears: document.getElementById('m-ears').value || (petData.hygiene || {}).ears || '',
-      teeth: document.getElementById('m-teeth').value || (petData.hygiene || {}).teeth || ''
-    };
+    window._healthDocPhoto = null;
+  } else if (activeModalType === 'careitem') {
+    const key = window._careKey || 'bath';
+    const done = document.getElementById('m-care-date')?.value || '';
+    let interval = parseInt(document.getElementById('m-care-interval')?.value, 10) || 0;
+    let next = document.getElementById('m-care-next')?.value || '';
+    if (done && interval > 0 && !next) {
+      const d = new Date(done + 'T00:00:00');
+      d.setDate(d.getDate() + interval);
+      next = d.toISOString().slice(0, 10);
+    } else if (done && interval > 0) {
+      const d = new Date(done + 'T00:00:00');
+      d.setDate(d.getDate() + interval);
+      next = d.toISOString().slice(0, 10);
+    }
+    petData.hygiene = { ...(petData.hygiene || {}), [key]: done };
+    petData.hygieneInterval = { ...(petData.hygieneInterval || {}), [key]: interval || null };
+    petData.hygieneNext = { ...(petData.hygieneNext || {}), [key]: next || '' };
   } else if (activeModalType === 'weight') {
     const w = parseFloat(document.getElementById('m-weight').value);
     const d = document.getElementById('m-wdate').value;
@@ -1608,8 +1667,12 @@ async function saveModal() {
       active: true,
       archived: false,
       bagKg: bag,
-      notes
+      notes,
+      photoURL: window._foodPhoto || null,
+      aiInfo: window._foodAiInfo || ''
     }, ...(petData.foods || [])];
+    window._foodPhoto = null;
+    window._foodAiInfo = '';
     try {
       await db.collection('pets').doc(currentPetId).update({ foods: petData.foods });
       closeModal();
@@ -1628,8 +1691,14 @@ async function saveModal() {
   try {
     await db.collection('pets').doc(currentPetId).update({
       walks: petData.walks || [], meals: petData.meals || [], health: petData.health || [],
-      hygiene: petData.hygiene || {}, weight: petData.weight || null, weightHistory: petData.weightHistory || [],
-      foods: petData.foods || []
+      hygiene: petData.hygiene || {},
+      hygieneInterval: petData.hygieneInterval || {},
+      hygieneNext: petData.hygieneNext || {},
+      weight: petData.weight || null, weightHistory: petData.weightHistory || [],
+      foods: petData.foods || [],
+      medications: petData.medications || [],
+      symptoms: petData.symptoms || [],
+      emergency: petData.emergency || {}
     });
     closeModal();
   } catch (e) { alert('Грешка: ' + e.message); }
@@ -2513,6 +2582,405 @@ saveModal = async function () {
     try { scheduleLocalReminders(); } catch (e) {}
   };
 })();
+
+// —— Care single item ——
+function openCareItem(key) {
+  window._careKey = key;
+  openModal('careitem');
+}
+
+// —— Medications ——
+function openMedModal(editId) {
+  activeModalType = 'med';
+  window._editMedId = editId || null;
+  const med = editId ? (petData.medications || []).find(m => m.id === editId) : null;
+  document.getElementById('modal-title').textContent = med ? 'Редакция на лекарство' : 'Ново лекарство';
+  document.getElementById('modal-body').innerHTML = `
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Име</label>
+      <input id="m-med-name" type="text" value="${med ? (med.name || '').replace(/"/g, '&quot;') : ''}" placeholder="започни да пишеш…" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none" oninput="searchProductAI(this.value,'med')">
+      <div id="ai-product-results" class="mt-1 space-y-1 max-h-32 overflow-y-auto hidden"></div>
+      <p id="m-med-ai-info" class="text-[11px] text-slate-500 mt-1">${med?.aiInfo ? med.aiInfo.replace(/</g,'') : ''}</p>
+    </div>
+    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Доза</label>
+      <input id="m-med-dose" type="text" value="${med ? (med.dose || '').replace(/"/g,'&quot;') : ''}" placeholder="напр. 1 табл. / 0.5 мл" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Часове (разделени със запетая)</label>
+      <input id="m-med-times" type="text" value="${med ? (med.times || []).join(', ') : ''}" placeholder="08:00, 20:00" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+    <div class="grid grid-cols-2 gap-2">
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">От</label>
+      <input id="m-med-start" type="date" value="${med?.startDate || new Date().toISOString().slice(0,10)}" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">До (по избор)</label>
+      <input id="m-med-end" type="date" value="${med?.endDate || ''}" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+    </div>
+    <textarea id="m-med-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none">${med ? (med.notes || '').replace(/</g,'&lt;') : ''}</textarea>`;
+  window._medAiInfo = med?.aiInfo || '';
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderMedsList() {
+  const list = document.getElementById('meds-list');
+  const todayList = document.getElementById('meds-today-list');
+  const meds = (petData.medications || []).filter(m => m.active !== false);
+  const today = new Date().toISOString().slice(0, 10);
+  const html = meds.length ? meds.map(m => {
+    const times = m.times || [];
+    const givenToday = (m.givenLog || []).filter(g => g.date === today);
+    const timesHtml = times.map(t => {
+      const done = givenToday.some(g => g.time === t);
+      return `<button type="button" onclick="markMedGiven('${m.id}','${t}')" class="px-2 py-1 rounded-lg text-[11px] font-bold ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 dark:bg-slate-800 text-slate-600'}">${t}${done ? ' ✓' : ''}</button>`;
+    }).join(' ');
+    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm">
+      <div class="flex justify-between gap-2">
+        <div>
+          <div class="font-bold text-sm">${m.name}</div>
+          <div class="text-[11px] text-slate-400">${m.dose || ''}${m.endDate ? ' · до ' + fmtDate(m.endDate) : ''}</div>
+          ${m.aiInfo ? `<div class="text-[10px] text-slate-500 mt-1 line-clamp-2">${m.aiInfo}</div>` : ''}
+        </div>
+        <div class="flex gap-1">
+          <button onclick="openMedModal('${m.id}')" class="text-[11px] font-bold text-teal-600">✎</button>
+          <button onclick="deleteMed('${m.id}')" class="text-slate-400">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1.5 mt-2">${timesHtml || '<span class="text-[11px] text-slate-400">без фиксирани часове</span>'}
+        ${!times.length ? `<button type="button" onclick="markMedGiven('${m.id}','')" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-stone-100 dark:bg-slate-800">Дадено днес</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<p class="text-xs text-slate-400 text-center py-4">Няма лекарства</p>';
+  if (list) list.innerHTML = html;
+  if (todayList) {
+    const due = meds.filter(m => (m.times || []).length || true);
+    todayList.innerHTML = due.length ? due.slice(0, 5).map(m => {
+      const given = (m.givenLog || []).some(g => g.date === today);
+      return `<div class="flex items-center justify-between text-sm py-1">
+        <span>${m.name}${m.dose ? ' · ' + m.dose : ''}</span>
+        <button onclick="markMedGiven('${m.id}','')" class="text-[11px] font-bold ${given ? 'text-emerald-600' : 'text-teal-600'}">${given ? '✓ дадено' : 'отбележи'}</button>
+      </div>`;
+    }).join('') : '<p class="text-xs text-slate-400">Няма активни лекарства</p>';
+  }
+}
+
+async function markMedGiven(id, time) {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = time || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+  petData.medications = (petData.medications || []).map(m => {
+    if (m.id !== id) return m;
+    const log = [...(m.givenLog || [])];
+    if (!log.some(g => g.date === today && (!time || g.time === time))) {
+      log.unshift({ date: today, time: now, authorUid: currentUser.uid });
+    }
+    return { ...m, givenLog: log.slice(0, 60) };
+  });
+  await db.collection('pets').doc(currentPetId).update({ medications: petData.medications });
+  renderMedsList();
+}
+
+async function deleteMed(id) {
+  if (!confirm('Изтриване на лекарството?')) return;
+  petData.medications = (petData.medications || []).filter(m => m.id !== id);
+  await db.collection('pets').doc(currentPetId).update({ medications: petData.medications });
+  renderMedsList();
+}
+
+// —— Symptoms ——
+function openSymptomModal() {
+  activeModalType = 'symptom';
+  const today = new Date().toISOString().slice(0, 10);
+  const timeVal = `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+  document.getElementById('modal-title').textContent = 'Симптоми';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="grid grid-cols-2 gap-2">
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Дата</label>
+      <input id="m-sym-date" type="date" value="${today}" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
+      <input id="m-sym-time" type="time" value="${timeVal}" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+    </div>
+    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Изпражнения</label>
+      <select id="m-sym-stool" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+        <option value="normal">Нормални</option><option value="soft">Меки</option><option value="diarrhea">Диария</option><option value="none">Няма</option><option value="unknown">—</option>
+      </select></div>
+    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Повръщане</label>
+      <select id="m-sym-vomit" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+        <option value="no">Не</option><option value="yes">Да</option><option value="bile">Жлъчка / пяна</option>
+      </select></div>
+    <div class="grid grid-cols-2 gap-2">
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Енергия</label>
+      <select id="m-sym-energy" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+        <option value="normal">Нормална</option><option value="low">Ниска</option><option value="high">Висока</option>
+      </select></div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Апетит</label>
+      <select id="m-sym-appetite" class="w-full px-3 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+        <option value="normal">Нормален</option><option value="low">Намален</option><option value="none">Отказва</option>
+      </select></div>
+    </div>
+    <textarea id="m-sym-notes" rows="2" placeholder="Други бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>`;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderSymptomsList() {
+  const el = document.getElementById('symptoms-recent-list');
+  if (!el) return;
+  const list = [...(petData.symptoms || [])].sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 5);
+  const labels = {
+    stool: { normal: 'норм.', soft: 'меки', diarrhea: 'диария', none: 'няма', unknown: '—' },
+    vomit: { no: 'без повр.', yes: 'повръщане', bile: 'жлъчка' },
+    energy: { normal: 'енергия ок', low: 'слаба енергия', high: 'хиперакт.' },
+    appetite: { normal: 'апетит ок', low: 'слаб апетит', none: 'отказ храна' }
+  };
+  el.innerHTML = list.length ? list.map(s =>
+    `<div class="text-xs py-1.5 border-b border-stone-100 dark:border-slate-800 last:border-0">
+      <span class="font-semibold">${fmtDate(s.date)} ${s.time || ''}</span>
+      · ${labels.stool[s.stool] || ''} · ${labels.vomit[s.vomit] || ''} · ${labels.energy[s.energy] || ''} · ${labels.appetite[s.appetite] || ''}
+      ${s.notes ? `<div class="text-slate-500 mt-0.5">${s.notes}</div>` : ''}
+    </div>`
+  ).join('') : '<p class="text-xs text-slate-400">Няма записи</p>';
+}
+
+// —— Emergency ——
+function openEmergencyModal() {
+  activeModalType = 'emergency';
+  const e = petData.emergency || {};
+  document.getElementById('modal-title').textContent = 'Спешни контакти';
+  document.getElementById('modal-body').innerHTML = `
+    <input id="m-em-vet" type="text" placeholder="Ветеринар / клиника" value="${(e.vetName || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <input id="m-em-phone" type="tel" placeholder="Телефон" value="${(e.vetPhone || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <input id="m-em-addr" type="text" placeholder="Адрес" value="${(e.vetAddress || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <input id="m-em-clinic" type="text" placeholder="Дежурна клиника" value="${(e.emergencyClinic || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <input id="m-em-ephone" type="tel" placeholder="Дежурен телефон" value="${(e.emergencyPhone || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <input id="m-em-ins" type="text" placeholder="Застраховка / полица" value="${(e.insurance || '').replace(/"/g,'&quot;')}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    <textarea id="m-em-notes" rows="2" placeholder="Бележки" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none">${(e.notes || '').replace(/</g,'&lt;')}</textarea>`;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function renderEmergencySummary() {
+  const el = document.getElementById('emergency-summary');
+  if (!el) return;
+  const e = petData.emergency || {};
+  if (!e.vetName && !e.vetPhone && !e.emergencyPhone) {
+    el.innerHTML = '<span class="text-slate-400">Все още няма контакти</span>';
+    return;
+  }
+  el.innerHTML = `
+    ${e.vetName ? `<div><strong>${e.vetName}</strong>${e.vetPhone ? ' · <a class="text-teal-600" href="tel:' + e.vetPhone + '">' + e.vetPhone + '</a>' : ''}</div>` : ''}
+    ${e.vetAddress ? `<div>${e.vetAddress}</div>` : ''}
+    ${e.emergencyClinic || e.emergencyPhone ? `<div class="text-amber-600">Дежурно: ${e.emergencyClinic || ''} ${e.emergencyPhone ? '<a href="tel:' + e.emergencyPhone + '">' + e.emergencyPhone + '</a>' : ''}</div>` : ''}
+    ${e.insurance ? `<div>Застраховка: ${e.insurance}</div>` : ''}`;
+}
+
+// —— Export for vet ——
+function exportVetSummary() {
+  const lines = [];
+  lines.push('PetPulse – справка за ветеринар');
+  lines.push(`${petData.name || ''} · ${petData.breed || ''} · ${petData.weight ? petData.weight + ' кг' : ''}`);
+  lines.push(`Чип: ${petData.chip || '—'} · Паспорт: ${petData.passport || '—'}`);
+  lines.push(`Алергии: ${petData.allergies || '—'}`);
+  lines.push(`Хронични: ${petData.chronic || '—'}`);
+  lines.push(`Кастрация: ${petData.neutered || '—'}`);
+  lines.push('');
+  lines.push('— Ваксини / здраве —');
+  [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 15).forEach(h => {
+    lines.push(`${h.date} | ${h.title}${h.productName ? ' (' + h.productName + ')' : ''}${h.nextDate ? ' → ' + h.nextDate : ''}`);
+  });
+  lines.push('');
+  lines.push('— Лекарства —');
+  (petData.medications || []).filter(m => m.active !== false).forEach(m => {
+    lines.push(`${m.name} · ${m.dose || ''} · ${(m.times || []).join(', ')}`);
+  });
+  lines.push('');
+  lines.push('— Симптоми (последни) —');
+  [...(petData.symptoms || [])].slice(0, 10).forEach(s => {
+    lines.push(`${s.date} ${s.time || ''}: stool=${s.stool}, vomit=${s.vomit}, energy=${s.energy}, appetite=${s.appetite}${s.notes ? ' · ' + s.notes : ''}`);
+  });
+  const e = petData.emergency || {};
+  lines.push('');
+  lines.push('— Контакти —');
+  lines.push(`${e.vetName || ''} ${e.vetPhone || ''} ${e.vetAddress || ''}`);
+  const text = lines.join('\n');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => alert('Копирано в клипборда – можеш да го пратиш на ветеринара.')).catch(() => {
+      prompt('Копирай текста:', text);
+    });
+  } else {
+    prompt('Копирай текста:', text);
+  }
+}
+
+// —— AI product search (meds / food) ——
+let _aiSearchTimer = null;
+function searchProductAI(q, kind) {
+  clearTimeout(_aiSearchTimer);
+  const box = document.getElementById('ai-product-results');
+  if (!box) return;
+  if (!q || q.trim().length < 3) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  _aiSearchTimer = setTimeout(() => runProductAISearch(q.trim(), kind), 600);
+}
+
+async function runProductAISearch(q, kind) {
+  const box = document.getElementById('ai-product-results');
+  if (!box) return;
+  const key = getAiSettings().apiKey;
+  if (!key) {
+    box.classList.remove('hidden');
+    box.innerHTML = '<p class="text-[11px] text-slate-400 px-1">Сложи Gemini API ключ в Меню → AI за предложения</p>';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = '<p class="text-[11px] text-slate-400 px-1">Търсене…</p>';
+  const petType = petData.type === 'cat' ? 'котка' : (petData.type === 'dog' ? 'куче' : 'домашен любимец');
+  const prompt = kind === 'med'
+    ? `Ти си ветеринарен асистент. Потребителят търси лекарство/препарат за ${petType}: "${q}". Върни JSON масив с до 5 елемента: [{"name":"официално име","info":"1-2 изречения: за какво се ползва, типична форма, важно предупреждение"}]. Само JSON, без markdown.`
+    : `Ти си асистент за храна за ${petType}. Потребителят търси: "${q}". Върни JSON масив до 5: [{"name":"марка/име","info":"кратко за типа храна (puppy/adult, суха/мокра)"}]. Само JSON, без markdown.`;
+  try {
+    const reply = await callGeminiApi(key, [{ role: 'user', parts: [{ text: prompt }] }], 'Отговаряй само с валиден JSON масив.');
+    let arr = [];
+    try {
+      const cleaned = reply.replace(/```json|```/g, '').trim();
+      arr = JSON.parse(cleaned);
+    } catch (e) {
+      box.innerHTML = `<p class="text-[11px] text-slate-500 px-1">${reply.slice(0, 200)}</p>`;
+      return;
+    }
+    if (!Array.isArray(arr) || !arr.length) {
+      box.innerHTML = '<p class="text-[11px] text-slate-400 px-1">Няма предложения</p>';
+      return;
+    }
+    box.innerHTML = arr.map((item, i) =>
+      `<button type="button" class="w-full text-left px-3 py-2 rounded-lg bg-stone-50 dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-teal-950/30 text-xs" onclick='pickAiProduct(${JSON.stringify(item).replace(/'/g, "&#39;")},${JSON.stringify(kind)})'>
+        <div class="font-bold">${(item.name || '').replace(/</g,'')}</div>
+        <div class="text-slate-500 mt-0.5">${(item.info || '').replace(/</g,'')}</div>
+      </button>`
+    ).join('');
+  } catch (e) {
+    box.innerHTML = `<p class="text-[11px] text-red-500 px-1">${e.message}</p>`;
+  }
+}
+
+function pickAiProduct(item, kind) {
+  if (kind === 'med') {
+    const n = document.getElementById('m-med-name');
+    if (n) n.value = item.name || '';
+    const info = document.getElementById('m-med-ai-info');
+    if (info) info.textContent = item.info || '';
+    window._medAiInfo = item.info || '';
+  } else {
+    const n = document.getElementById('m-food-name');
+    if (n) n.value = item.name || '';
+    window._foodAiInfo = item.info || '';
+  }
+  document.getElementById('ai-product-results')?.classList.add('hidden');
+}
+
+// —— Photos (food / health doc) ——
+async function handleFoodPhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    window._foodPhoto = await compressImage(file, 400, 0.7);
+    const prev = document.getElementById('m-food-photo-preview');
+    if (prev) {
+      prev.classList.remove('hidden');
+      prev.querySelector('img').src = window._foodPhoto;
+    }
+  } catch (e) { alert(e.message); }
+}
+async function handleHealthDoc(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    window._healthDocPhoto = await compressImage(file, 800, 0.72);
+    const prev = document.getElementById('m-health-doc-preview');
+    if (prev) {
+      prev.classList.remove('hidden');
+      prev.querySelector('img').src = window._healthDocPhoto;
+    }
+  } catch (e) { alert(e.message); }
+}
+
+// Extend saveModal for med / symptom / emergency
+(function patchSaveModalExtras() {
+  const prev = saveModal;
+  saveModal = async function () {
+    if (activeModalType === 'med') {
+      const name = document.getElementById('m-med-name')?.value.trim();
+      if (!name) return alert('Въведи име');
+      const times = (document.getElementById('m-med-times')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
+      const payload = {
+        name,
+        dose: document.getElementById('m-med-dose')?.value.trim() || '',
+        times,
+        startDate: document.getElementById('m-med-start')?.value || '',
+        endDate: document.getElementById('m-med-end')?.value || '',
+        notes: document.getElementById('m-med-notes')?.value.trim() || '',
+        aiInfo: window._medAiInfo || '',
+        active: true
+      };
+      if (window._editMedId) {
+        petData.medications = (petData.medications || []).map(m => m.id === window._editMedId ? { ...m, ...payload } : m);
+      } else {
+        petData.medications = [{ id: 'med' + Date.now(), givenLog: [], ...payload }, ...(petData.medications || [])];
+      }
+      await db.collection('pets').doc(currentPetId).update({ medications: petData.medications });
+      closeModal();
+      renderMedsList();
+      return;
+    }
+    if (activeModalType === 'symptom') {
+      const item = {
+        id: 'sym' + Date.now(),
+        date: document.getElementById('m-sym-date')?.value,
+        time: document.getElementById('m-sym-time')?.value,
+        stool: document.getElementById('m-sym-stool')?.value,
+        vomit: document.getElementById('m-sym-vomit')?.value,
+        energy: document.getElementById('m-sym-energy')?.value,
+        appetite: document.getElementById('m-sym-appetite')?.value,
+        notes: document.getElementById('m-sym-notes')?.value.trim() || '',
+        authorUid: currentUser.uid
+      };
+      petData.symptoms = [item, ...(petData.symptoms || [])].slice(0, 100);
+      await db.collection('pets').doc(currentPetId).update({ symptoms: petData.symptoms });
+      closeModal();
+      renderSymptomsList();
+      return;
+    }
+    if (activeModalType === 'emergency') {
+      petData.emergency = {
+        vetName: document.getElementById('m-em-vet')?.value.trim() || '',
+        vetPhone: document.getElementById('m-em-phone')?.value.trim() || '',
+        vetAddress: document.getElementById('m-em-addr')?.value.trim() || '',
+        emergencyClinic: document.getElementById('m-em-clinic')?.value.trim() || '',
+        emergencyPhone: document.getElementById('m-em-ephone')?.value.trim() || '',
+        insurance: document.getElementById('m-em-ins')?.value.trim() || '',
+        notes: document.getElementById('m-em-notes')?.value.trim() || ''
+      };
+      await db.collection('pets').doc(currentPetId).update({ emergency: petData.emergency });
+      closeModal();
+      renderEmergencySummary();
+      return;
+    }
+    return prev();
+  };
+})();
+
+// Walk goal in stats widget – soft hint via scheduleLocalReminders extension
+const _scheduleRemindersOrig = scheduleLocalReminders;
+scheduleLocalReminders = function () {
+  _scheduleRemindersOrig();
+  if (!('Notification' in window) || Notification.permission !== 'granted' || !petData) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = 'petpulse_walkgoal_' + currentPetId + '_' + today;
+  if (localStorage.getItem(key) === '1') return;
+  const goal = petData.walkGoalMinutes;
+  if (!goal) return;
+  const mins = (petData.walks || []).filter(w => w.date === today).reduce((s, w) => s + (parseInt(w.duration, 10) || 0), 0);
+  if (mins < goal && new Date().getHours() >= 18) {
+    try {
+      new Notification('PetPulse · ' + (petData.name || ''), {
+        body: `Разходки днес: ${mins} / ${goal} мин`,
+        tag: key
+      });
+      localStorage.setItem(key, '1');
+    } catch (e) {}
+  }
+};
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

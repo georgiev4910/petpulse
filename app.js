@@ -291,8 +291,7 @@ async function createPet() {
     gender: document.getElementById('np-gender').value,
     passport: document.getElementById('np-passport').value.trim(),
     chip: document.getElementById('np-chip').value.trim(),
-    foodBrandModel: document.getElementById('np-food').value.trim(),
-    foodBagKg: parseFloat(document.getElementById('np-bag').value) || 12,
+    foods: [],
     trackFood: true, allergies: '', habits: '',
     hygiene: { bath: '', nails: '', ears: '', teeth: '' },
     weightHistory: [], code,
@@ -380,23 +379,40 @@ function renderWidget(id) {
   const hyg = petData.hygiene || {};
 
   if (id === 'hero') {
-    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm flex items-center gap-4">
-      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 text-white text-3xl flex items-center justify-center shrink-0">${emoji}</div>
-      <div class="min-w-0">
-        <div class="font-bold text-lg leading-tight">${petData.name || 'Любимец'}</div>
-        <div class="text-sm text-slate-500">${petData.breed || ''}${age ? ' · ' + age : ''}</div>
-        ${petData.weight ? `<div class="text-xs text-teal-600 font-semibold mt-0.5">${petData.weight} кг</div>` : ''}
+    const walksToday = (petData.walks || []).filter(w => w.date === todayStr).length;
+    const mealsToday = (petData.meals || []).filter(m => m.date === todayStr).length;
+    return `<div class="bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+      <div class="h-28 bg-gradient-to-br from-teal-400 via-teal-500 to-emerald-600 relative flex items-end p-4">
+        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)]"></div>
+        <div class="relative flex items-center gap-3 w-full">
+          <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30">${emoji}</div>
+          <div class="text-white min-w-0">
+            <div class="font-bold text-lg leading-tight">${petData.name || 'Любимец'}</div>
+            <div class="text-xs text-white/80">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 divide-x divide-stone-100 dark:divide-slate-800">
+        <div class="py-3 text-center"><div class="text-base font-extrabold text-emerald-600">${mealsToday}</div><div class="text-[10px] text-slate-400">храна</div></div>
+        <div class="py-3 text-center"><div class="text-base font-extrabold text-sky-500">${walksToday}</div><div class="text-[10px] text-slate-400">разходки</div></div>
+        <div class="py-3 text-center"><div class="text-base font-extrabold text-amber-500">${(petData.health||[]).filter(h=>h.date===todayStr).length}</div><div class="text-[10px] text-slate-400">здраве</div></div>
       </div>
     </div>`;
   }
 
   if (id === 'quick') {
-    return `<div class="grid grid-cols-2 gap-3">
-      <button onclick="openModal('walk')" class="p-4 rounded-2xl bg-gradient-to-br from-sky-500 to-sky-600 text-white text-left shadow-md shadow-sky-500/20 active:scale-[0.98] transition">
-        <div class="text-xl mb-1">🚶</div><div class="font-bold text-sm">Разходка</div>
+    return `<div class="grid grid-cols-4 gap-2">
+      <button onclick="openModal('meal')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
+        <div class="text-xl mb-1">🥣</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Храна</div>
       </button>
-      <button onclick="openModal('meal')" class="p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white text-left shadow-md shadow-emerald-500/20 active:scale-[0.98] transition">
-        <div class="text-xl mb-1">🍖</div><div class="font-bold text-sm">Хранене</div>
+      <button onclick="openModal('walk')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
+        <div class="text-xl mb-1">🚶</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Разходка</div>
+      </button>
+      <button onclick="openModal('health')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
+        <div class="text-xl mb-1">💊</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Здраве</div>
+      </button>
+      <button onclick="openModal('hygiene')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
+        <div class="text-xl mb-1">🛁</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Грижи</div>
       </button>
     </div>`;
   }
@@ -405,10 +421,11 @@ function renderWidget(id) {
     const walksToday = (petData.walks || []).filter(w => w.date === todayStr).length;
     const mealsToday = (petData.meals || []).filter(m => m.date === todayStr).length;
     let bag = '—';
-    if (petData.trackFood !== false) {
+    const mainFood = (petData.foods || []).find(f => f.active && f.type === 'main' && f.bagKg);
+    if (mainFood) {
       let total = 0;
-      (petData.meals || []).forEach(m => { if (m.amount) total += Number(m.amount); });
-      bag = Math.max(0, ((petData.foodBagKg || 12) * 1000 - total) / 1000).toFixed(1) + ' кг';
+      (petData.meals || []).forEach(m => { if (m.amount && m.foodType !== 'treat') total += Number(m.amount); });
+      bag = Math.max(0, (mainFood.bagKg * 1000 - total) / 1000).toFixed(1) + ' кг';
     }
     return `<div class="grid grid-cols-3 gap-2">
       <div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3 text-center shadow-sm">
@@ -434,7 +451,10 @@ function renderWidget(id) {
         ...w, type: 'walk',
         label: `Разходка ${w.duration || ''} мин${w.weather ? ' ' + (weatherIcon[w.weather] || '') : ''}${w.place ? ' · ' + w.place : ''}`
       })),
-      ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({ ...m, type: 'meal', label: `Хранене ${m.amount || ''} г` })),
+      ...(petData.meals || []).filter(m => m.date === todayStr).map(m => ({
+        ...m, type: 'meal',
+        label: `${m.foodType === 'treat' ? 'Награда' : 'Хранене'}${m.foodName ? ' · ' + m.foodName : ''}${m.amount ? ' ' + m.amount + ' г' : ''}`
+      })),
       ...(petData.health || []).filter(h => h.date === todayStr).map(h => ({ ...h, type: 'health', label: h.title }))
     ].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const dateLabel = new Date().toLocaleDateString('bg-BG', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -483,17 +503,24 @@ function renderWidget(id) {
   }
 
   if (id === 'food') {
-    const brand = petData.foodBrandModel || '—';
-    let rem = '—';
-    if (petData.trackFood !== false) {
-      let total = 0;
-      (petData.meals || []).forEach(m => { if (m.amount) total += Number(m.amount); });
-      rem = Math.max(0, ((petData.foodBagKg || 12) * 1000 - total) / 1000).toFixed(1) + ' кг остават';
+    const foods = (petData.foods || []).filter(f => f.active);
+    const main = foods.filter(f => f.type === 'main');
+    const treats = foods.filter(f => f.type === 'treat');
+    if (!foods.length) {
+      return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
+        <h3 class="font-bold text-sm mb-1">Храна и награди</h3>
+        <p class="text-xs text-slate-400">Добави храни от таб „Любимци“ → Храна и награди</p>
+      </div>`;
     }
     return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
-      <h3 class="font-bold text-sm mb-2">Храна</h3>
-      <div class="text-sm"><span class="text-slate-400">Марка:</span> ${brand}</div>
-      <div class="text-sm mt-1"><span class="text-slate-400">Чувал:</span> ${rem}</div>
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-bold text-sm">Храна и награди</h3>
+        <button onclick="switchTab('pets')" class="text-[11px] text-teal-600 font-semibold">Управление</button>
+      </div>
+      ${main.length ? `<div class="text-xs text-slate-400 mb-1">Основна</div>
+        <div class="flex flex-wrap gap-1.5 mb-2">${main.map(f => `<span class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium">${f.name}${f.bagKg ? ' · ' + f.bagKg + 'кг' : ''}</span>`).join('')}</div>` : ''}
+      ${treats.length ? `<div class="text-xs text-slate-400 mb-1">Награди</div>
+        <div class="flex flex-wrap gap-1.5">${treats.map(f => `<span class="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium">${f.name}</span>`).join('')}</div>` : ''}
       ${petData.allergies ? `<div class="text-xs text-amber-600 mt-2">⚠ ${petData.allergies}</div>` : ''}
     </div>`;
   }
@@ -581,6 +608,66 @@ function renderApp() {
 
   renderHomeWidgets();
   renderPetsList();
+  renderFoodsList();
+}
+
+function renderFoodsList() {
+  const el = document.getElementById('foods-list');
+  if (!el) return;
+  const foods = petData.foods || [];
+  if (!foods.length) {
+    el.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">Няма добавени храни. Добави основна гранула или награда.</p>`;
+    return;
+  }
+  el.innerHTML = foods.map(f => `
+    <div class="flex items-center gap-3 p-2.5 rounded-xl bg-stone-50 dark:bg-slate-800/50">
+      <div class="text-lg">${f.type === 'treat' ? '🦴' : '🥣'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold truncate">${f.name}</div>
+        <div class="text-[10px] text-slate-400">${f.type === 'treat' ? 'Награда' : 'Основна'}${f.bagKg ? ' · чувал ' + f.bagKg + ' кг' : ''}</div>
+      </div>
+      <label class="flex items-center gap-1.5 text-[11px] text-slate-500">
+        <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFoodActive('${f.id}', this.checked)" class="rounded accent-teal-600">
+        активна
+      </label>
+      <button onclick="deleteFood('${f.id}')" class="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>
+    </div>`).join('');
+}
+
+function openAddFoodModal() {
+  activeModalType = 'addfood';
+  document.getElementById('modal-title').textContent = 'Нова храна / награда';
+  document.getElementById('modal-body').innerHTML = `
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Тип</label>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" onclick="window._foodType='main';document.getElementById('ft-main').classList.add('border-teal-500','bg-teal-50');document.getElementById('ft-treat').classList.remove('border-teal-500','bg-teal-50')" id="ft-main" class="py-3 rounded-xl border-2 border-teal-500 bg-teal-50 text-sm font-semibold">🥣 Основна</button>
+        <button type="button" onclick="window._foodType='treat';document.getElementById('ft-treat').classList.add('border-teal-500','bg-teal-50');document.getElementById('ft-main').classList.remove('border-teal-500','bg-teal-50')" id="ft-treat" class="py-3 rounded-xl border-2 border-stone-200 text-sm font-semibold">🦴 Награда</button>
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Име / марка</label>
+      <input id="m-food-name" type="text" placeholder="напр. Royal Canin Mini Puppy" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Чувал (кг) – по избор</label>
+      <input id="m-food-bag" type="number" step="0.5" placeholder="12" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    </div>`;
+  window._foodType = 'main';
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function toggleFoodActive(id, on) {
+  const foods = (petData.foods || []).map(f => f.id === id ? { ...f, active: on } : f);
+  petData.foods = foods;
+  await db.collection('pets').doc(currentPetId).update({ foods });
+}
+
+async function deleteFood(id) {
+  if (!confirm('Премахване на тази храна?')) return;
+  const foods = (petData.foods || []).filter(f => f.id !== id);
+  petData.foods = foods;
+  await db.collection('pets').doc(currentPetId).update({ foods });
 }
 
 function renderPetsList() {
@@ -730,10 +817,30 @@ function openModal(type) {
     // auto-try location
     setTimeout(() => captureWalkLocation(true), 300);
   } else if (type === 'meal') {
-    body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
+    const active = (petData.foods || []).filter(f => f.active);
+    const opts = active.map(f => `<option value="${f.id}">${f.type === 'treat' ? '🦴 ' : '🥣 '}${f.name}</option>`).join('');
+    body.innerHTML = `
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Какво</label>
+        <select id="m-food-id" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+          ${opts || '<option value="">— няма активни храни —</option>'}
+          <option value="__other">Друго (еднократно)…</option>
+        </select>
+      </div>
+      <div id="m-other-wrap" class="hidden">
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Какво точно</label>
+        <input id="m-food-other" type="text" placeholder="напр. пилешко от масата" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+      </div>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
-      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Грама</label>
+      <div><label class="block text-xs font-semibold text-slate-400 mb-1">Количество (г)</label>
       <input id="m-amount" type="number" placeholder="65" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>`;
+    setTimeout(() => {
+      const sel = document.getElementById('m-food-id');
+      if (sel) sel.addEventListener('change', () => {
+        document.getElementById('m-other-wrap').classList.toggle('hidden', sel.value !== '__other');
+      });
+    }, 50);
   } else if (type === 'health') {
     body.innerHTML = `<div><label class="block text-xs font-semibold text-slate-400 mb-1">Какво</label>
       <input id="m-title" type="text" placeholder="Ваксина / Обезпаразитяване" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
@@ -838,6 +945,16 @@ async function saveModal() {
   } else if (activeModalType === 'meal') {
     item.time = document.getElementById('m-time').value;
     item.amount = document.getElementById('m-amount').value;
+    const fid = document.getElementById('m-food-id')?.value || '';
+    if (fid === '__other') {
+      item.foodName = document.getElementById('m-food-other')?.value.trim() || 'Друго';
+      item.foodType = 'other';
+    } else {
+      const f = (petData.foods || []).find(x => x.id === fid);
+      item.foodId = fid;
+      item.foodName = f ? f.name : '';
+      item.foodType = f ? f.type : 'main';
+    }
     petData.meals = [item, ...(petData.meals || [])];
   } else if (activeModalType === 'health') {
     item.title = document.getElementById('m-title').value || 'Запис';
@@ -860,11 +977,28 @@ async function saveModal() {
       petData.weight = w;
       petData.weightHistory = [{ date: d, weight: w }, ...(petData.weightHistory || [])].slice(0, 20);
     }
+  } else if (activeModalType === 'addfood') {
+    const name = document.getElementById('m-food-name')?.value.trim();
+    if (!name) return alert('Въведи име на храната');
+    const bag = parseFloat(document.getElementById('m-food-bag')?.value) || null;
+    petData.foods = [{
+      id: 'f' + Date.now(),
+      name,
+      type: window._foodType || 'main',
+      active: true,
+      bagKg: bag
+    }, ...(petData.foods || [])];
+    try {
+      await db.collection('pets').doc(currentPetId).update({ foods: petData.foods });
+      closeModal();
+    } catch (e) { alert('Грешка: ' + e.message); }
+    return;
   }
   try {
     await db.collection('pets').doc(currentPetId).update({
       walks: petData.walks || [], meals: petData.meals || [], health: petData.health || [],
-      hygiene: petData.hygiene || {}, weight: petData.weight || null, weightHistory: petData.weightHistory || []
+      hygiene: petData.hygiene || {}, weight: petData.weight || null, weightHistory: petData.weightHistory || [],
+      foods: petData.foods || []
     });
     closeModal();
   } catch (e) { alert('Грешка: ' + e.message); }
@@ -888,7 +1022,7 @@ function switchTab(id) {
       nav.classList.toggle('text-slate-400', t !== id);
     }
   });
-  if (id === 'pets') loadUserPets().then(renderPetsList);
+  if (id === 'pets') loadUserPets().then(() => { renderPetsList(); renderFoodsList(); });
   if (id === 'home') renderHomeWidgets();
 }
 

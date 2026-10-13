@@ -162,7 +162,7 @@
 
 <div id="app" class="hidden min-h-screen flex flex-col max-w-md mx-auto relative bg-stone-100 dark:bg-slate-950">
   <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-stone-200/80 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-    <button onclick="switchTab('pets')" class="flex items-center gap-2.5 min-w-0 text-left active:opacity-80">
+    <button onclick="openPetSwitcher()" class="flex items-center gap-2.5 min-w-0 text-left active:opacity-80">
       <div id="pet-avatar-box" class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl shrink-0 ring-2 ring-teal-500/20 overflow-hidden">🐕</div>
       <div class="min-w-0">
         <div class="flex items-center gap-1 font-bold text-[15px]">
@@ -546,6 +546,19 @@
       <input id="gemini-input" type="text" placeholder="Мога ли да ти дам праскова?" class="flex-1 px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none" onkeydown="if(event.key==='Enter')sendGemini()">
       <button onclick="sendGemini()" class="px-4 py-3 rounded-xl bg-amber-600 text-white font-bold text-sm">Изпрати</button>
     </div>
+  </div>
+</div>
+
+<!-- Pet switcher -->
+<div id="pet-switcher" class="hidden fixed inset-0 z-[65] max-w-md mx-auto">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closePetSwitcher()"></div>
+  <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-b shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-base">Любимци</h3>
+      <button onclick="closePetSwitcher()" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-500">✕</button>
+    </div>
+    <div id="pet-switcher-list" class="space-y-2 max-h-[50vh] overflow-y-auto"></div>
+    <button onclick="closePetSwitcher();switchTab('pets');showNewPetForm()" class="mt-4 w-full py-3 rounded-xl border border-dashed border-stone-300 dark:border-slate-600 text-sm font-semibold text-teal-600">+ Добави любимец</button>
   </div>
 </div>
 

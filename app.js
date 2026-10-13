@@ -370,11 +370,71 @@ async function joinWithCode() {
 }
 
 function switchToPet(petId) {
+  closePetSwitcher();
   if (unsubPet) unsubPet();
   currentPetId = petId;
   localStorage.setItem('petpulse_active_pet', petId);
   startPetListener();
   switchTab('home');
+}
+
+function openPetSwitcher() {
+  const list = document.getElementById('pet-switcher-list');
+  if (!list) return;
+  if (!userPets.length) {
+    list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Няма други любимци</p>`;
+  } else {
+    list.innerHTML = userPets.map(p => {
+      const active = p.id === currentPetId;
+      const em = p.type === 'cat' ? '🐈' : (p.type === 'dog' ? '🐕' : '🐾');
+      const av = p.photoURL
+        ? `<img src="${p.photoURL}" class="w-12 h-12 rounded-2xl object-cover" alt="">`
+        : `<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl">${em}</div>`;
+      return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800/50'}">
+        ${av}
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm">${p.name || 'Любимец'}</div>
+          <div class="text-[11px] text-slate-400">${p.breed || ({ dog: 'Куче', cat: 'Котка', other: 'Друго' }[p.type] || '')}</div>
+        </div>
+        ${active ? '<span class="text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/40 px-2 py-1 rounded-full">активен</span>' : '<span class="text-slate-300 text-lg">›</span>'}
+      </button>`;
+    }).join('');
+  }
+  document.getElementById('pet-switcher').classList.remove('hidden');
+}
+function closePetSwitcher() {
+  document.getElementById('pet-switcher')?.classList.add('hidden');
+}
+
+function multiPetPickerHtml() {
+  if (!userPets || userPets.length < 2) return '';
+  const chips = userPets.map(p => {
+    const checked = p.id === currentPetId ? 'checked' : '';
+    const em = p.type === 'cat' ? '🐈' : (p.type === 'dog' ? '🐕' : '🐾');
+    return `<label class="flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer">
+      <input type="checkbox" class="m-pet-target rounded accent-teal-600" value="${p.id}" ${checked}>
+      <span class="text-sm font-semibold">${em} ${p.name || 'Любимец'}</span>
+    </label>`;
+  }).join('');
+  return `<div class="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20 p-3 space-y-2">
+    <div class="flex items-center justify-between">
+      <label class="text-xs font-bold text-teal-700 dark:text-teal-400">За кои любимци?</label>
+      <button type="button" onclick="toggleAllPetTargets()" class="text-[11px] font-bold text-teal-600">Всички</button>
+    </div>
+    <div class="flex flex-wrap gap-2">${chips}</div>
+    <p class="text-[10px] text-slate-400">Можеш да запишеш еднакво за няколко наведнъж</p>
+  </div>`;
+}
+function toggleAllPetTargets() {
+  const boxes = [...document.querySelectorAll('.m-pet-target')];
+  const allOn = boxes.every(b => b.checked);
+  boxes.forEach(b => { b.checked = !allOn; });
+}
+function getSelectedPetTargets() {
+  const boxes = [...document.querySelectorAll('.m-pet-target')];
+  if (!boxes.length) return [currentPetId];
+  const ids = boxes.filter(b => b.checked).map(b => b.value);
+  return ids.length ? ids : [currentPetId];
 }
 
 function startPetListener() {
@@ -1039,7 +1099,8 @@ function openModal(type) {
         <input type="hidden" id="m-place" value="">
         <div id="m-map-link" class="hidden mt-1"></div>
         <p class="text-[10px] text-slate-400">Ако вече си вкъщи – потърси парка или въведи името ръчно.</p>
-      </div>`;
+      </div>
+      ${multiPetPickerHtml()}`;
     window._selectedWeather = 'sun';
   } else if (type === 'meal') {
     const active = (petData.foods || []).filter(f => f.active && !f.archived);
@@ -1059,7 +1120,8 @@ function openModal(type) {
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Час</label>
       <input id="m-time" type="time" value="${timeVal}" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
       <div><label class="block text-xs font-semibold text-slate-400 mb-1">Количество (г)</label>
-      <input id="m-amount" type="number" placeholder="65" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>`;
+      <input id="m-amount" type="number" placeholder="65" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none"></div>
+      ${multiPetPickerHtml()}`;
     setTimeout(() => {
       const sel = document.getElementById('m-food-id');
       if (sel) sel.addEventListener('change', () => {
@@ -1246,7 +1308,22 @@ async function saveModal() {
     item.place = document.getElementById('m-place')?.value
       || document.getElementById('m-place-search')?.value.trim()
       || '';
-    petData.walks = [item, ...(petData.walks || [])];
+    const targets = getSelectedPetTargets();
+    try {
+      await Promise.all(targets.map(async (pid, i) => {
+        const entry = { ...item, id: item.id + '_' + i };
+        if (pid === currentPetId) {
+          petData.walks = [entry, ...(petData.walks || [])];
+          await db.collection('pets').doc(pid).update({ walks: petData.walks });
+        } else {
+          const snap = await db.collection('pets').doc(pid).get();
+          const walks = [entry, ...(snap.data()?.walks || [])];
+          await db.collection('pets').doc(pid).update({ walks });
+        }
+      }));
+      closeModal();
+      return;
+    } catch (e) { alert('Грешка: ' + e.message); return; }
   } else if (activeModalType === 'meal') {
     item.time = document.getElementById('m-time').value;
     item.amount = document.getElementById('m-amount').value;
@@ -1260,7 +1337,22 @@ async function saveModal() {
       item.foodName = f ? f.name : '';
       item.foodType = f ? f.type : 'main';
     }
-    petData.meals = [item, ...(petData.meals || [])];
+    const targets = getSelectedPetTargets();
+    try {
+      await Promise.all(targets.map(async (pid, i) => {
+        const entry = { ...item, id: item.id + '_' + i };
+        if (pid === currentPetId) {
+          petData.meals = [entry, ...(petData.meals || [])];
+          await db.collection('pets').doc(pid).update({ meals: petData.meals });
+        } else {
+          const snap = await db.collection('pets').doc(pid).get();
+          const meals = [entry, ...(snap.data()?.meals || [])];
+          await db.collection('pets').doc(pid).update({ meals });
+        }
+      }));
+      closeModal();
+      return;
+    } catch (e) { alert('Грешка: ' + e.message); return; }
   } else if (activeModalType === 'health') {
     item.title = document.getElementById('m-title').value || 'Запис';
     item.productName = document.getElementById('m-product').value.trim();

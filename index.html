@@ -12,7 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body{font-family:Inter,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-    .pane{display:none}.pane.active{display:block;animation:fade .2s ease}
+    .pane{display:none!important}
+    .pane.active{display:block!important;animation:fade .2s ease}
+    #tab-home.pane.active{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem;align-content:start}
     @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
     .safe-b{padding-bottom:env(safe-area-inset-bottom,0)}
     .drawer-open{transform:translateX(0)!important}

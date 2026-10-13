@@ -623,8 +623,7 @@ function renderHomeWidgets() {
     if (!content) return '';
     return `<div class="widget ${sizeClass(w.size)} ${sizeMinH(w.size)}" data-wid="${w.id}">${content}</div>`;
   }).join('');
-  const isHome = host.classList.contains('active');
-  host.className = 'pane grid grid-cols-2 gap-2.5 content-start' + (isHome ? ' active' : '');
+  // Do not rewrite className here — switchTab owns active; CSS makes #tab-home a grid
   host.innerHTML = html || `<p class="col-span-2 text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
 }
 
@@ -1335,7 +1334,11 @@ async function deleteItem(type, id) {
 function switchTab(id) {
   closeFab();
   ['home', 'health', 'pets', 'calendar'].forEach(t => {
-    document.getElementById('tab-' + t)?.classList.toggle('active', t === id);
+    const pane = document.getElementById('tab-' + t);
+    if (pane) {
+      if (t === id) pane.classList.add('active');
+      else pane.classList.remove('active');
+    }
     const nav = document.getElementById('nav-' + t);
     if (nav) {
       nav.classList.toggle('text-teal-600', t === id);
@@ -1345,7 +1348,6 @@ function switchTab(id) {
   if (id === 'pets') loadUserPets().then(() => { renderPetsList(); renderFoodsList(); });
   if (id === 'home') renderHomeWidgets();
   if (id === 'calendar') renderCalendar();
-  // health still reachable from home quick actions
   if (id === 'health') setHealthSub(healthSub || 'overview');
 }
 

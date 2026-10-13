@@ -393,6 +393,13 @@ function switchToPet(petId, goHome) {
   }
 }
 
+function petThemeOf(p) {
+  if (p?.themeColor) return p.themeColor;
+  if (p?.type === 'cat') return '#ef4444';
+  if (p?.type === 'dog') return '#0d9488';
+  return '#8b5cf6';
+}
+
 function openPetSwitcher() {
   const list = document.getElementById('pet-switcher-list');
   if (!list) return;
@@ -402,16 +409,17 @@ function openPetSwitcher() {
     list.innerHTML = userPets.map(p => {
       const active = p.id === currentPetId;
       const em = p.type === 'cat' ? '🐈' : (p.type === 'dog' ? '🐕' : '🐾');
+      const theme = petThemeOf(p);
       const av = p.photoURL
-        ? `<img src="${p.photoURL}" class="w-12 h-12 rounded-2xl object-cover" alt="">`
-        : `<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl">${em}</div>`;
-      return `<button onclick="switchToPet('${p.id}', true)" class="w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800/50'}">
+        ? `<img src="${p.photoURL}" class="w-12 h-12 rounded-2xl object-cover" alt="" style="box-shadow:0 0 0 2px ${theme}55">`
+        : `<div class="w-12 h-12 rounded-2xl text-white flex items-center justify-center text-xl" style="background:linear-gradient(135deg,${theme},${theme}cc)">${em}</div>`;
+      return `<button onclick="switchToPet('${p.id}', true)" class="w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800/50'}" ${active ? `style="border-color:${theme};background:${theme}14"` : ''}>
         ${av}
         <div class="flex-1 min-w-0">
           <div class="font-bold text-sm">${p.name || 'Любимец'}</div>
           <div class="text-[11px] text-slate-400">${p.breed || ({ dog: 'Куче', cat: 'Котка', other: 'Друго' }[p.type] || '')}</div>
         </div>
-        ${active ? '<span class="text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/40 px-2 py-1 rounded-full">активен</span>' : '<span class="text-slate-300 text-lg">›</span>'}
+        ${active ? `<span class="text-[10px] font-bold px-2 py-1 rounded-full" style="color:${theme};background:${theme}22">активен</span>` : '<span class="text-slate-300 text-lg">›</span>'}
       </button>`;
     }).join('');
   }
@@ -494,11 +502,16 @@ function renderWidget(id, size) {
   if (id === 'hero') {
     const walksToday = (petData.walks || []).filter(w => w.date === todayStr).length;
     const mealsToday = (petData.meals || []).filter(m => m.date === todayStr).length;
+    const theme = petThemeOf(petData);
+    const themeDark = darkenHex(theme, 0.2);
+    const avInner = petData.photoURL
+      ? `<img src="${petData.photoURL}" class="w-full h-full object-cover rounded-2xl" alt="">`
+      : emoji;
     return `<button type="button" onclick="switchTab('pets')" class="w-full text-left bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm active:scale-[0.99] transition">
-      <div class="h-28 bg-gradient-to-br from-teal-400 via-teal-500 to-emerald-600 relative flex items-end p-4">
+      <div class="h-28 relative flex items-end p-4" style="background:linear-gradient(135deg,${theme} 0%,${themeDark} 100%)">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)]"></div>
         <div class="relative flex items-center gap-3 w-full">
-          <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30">${emoji}</div>
+          <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30 overflow-hidden">${avInner}</div>
           <div class="text-white min-w-0 flex-1">
             <div class="font-bold text-lg leading-tight">${petData.name || 'Любимец'}</div>
             <div class="text-xs text-white/80">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
@@ -507,7 +520,7 @@ function renderWidget(id, size) {
         </div>
       </div>
       <div class="grid grid-cols-3 divide-x divide-stone-100 dark:divide-slate-800">
-        <div class="py-3 text-center"><div class="text-base font-extrabold text-emerald-600">${mealsToday}</div><div class="text-[10px] text-slate-400">храна</div></div>
+        <div class="py-3 text-center"><div class="text-base font-extrabold" style="color:${theme}">${mealsToday}</div><div class="text-[10px] text-slate-400">храна</div></div>
         <div class="py-3 text-center"><div class="text-base font-extrabold text-sky-500">${walksToday}</div><div class="text-[10px] text-slate-400">разходки</div></div>
         <div class="py-3 text-center"><div class="text-base font-extrabold text-amber-500">${(petData.health||[]).filter(h=>h.date===todayStr).length}</div><div class="text-[10px] text-slate-400">здраве</div></div>
       </div>
@@ -934,11 +947,15 @@ function renderPetsList() {
   el.innerHTML = userPets.map(p => {
     const em = p.type === 'cat' ? '🐈' : (p.type === 'dog' ? '🐕' : '🐾');
     const active = p.id === currentPetId;
-    return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl border ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-800 bg-white dark:bg-slate-900'} text-left">
-      <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl">${em}</div>
+    const theme = petThemeOf(p);
+    const av = p.photoURL
+      ? `<img src="${p.photoURL}" class="w-11 h-11 rounded-xl object-cover" alt="">`
+      : `<div class="w-11 h-11 rounded-xl text-white flex items-center justify-center text-xl" style="background:linear-gradient(135deg,${theme},${theme}cc)">${em}</div>`;
+    return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left ${active ? '' : 'border-stone-200 dark:border-slate-800 bg-white dark:bg-slate-900'}" ${active ? `style="border-color:${theme};background:${theme}14"` : ''}>
+      ${av}
       <div class="flex-1 min-w-0"><div class="font-bold text-sm">${p.name}</div>
       <div class="text-[11px] text-slate-400">${{ dog: 'Куче', cat: 'Котка', other: 'Друго' }[p.type] || ''}</div></div>
-      ${active ? '<span class="text-[10px] font-bold text-teal-600">активен</span>' : ''}
+      ${active ? `<span class="text-[10px] font-bold" style="color:${theme}">активен</span>` : ''}
     </button>`;
   }).join('');
 }

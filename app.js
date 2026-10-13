@@ -381,15 +381,16 @@ function renderWidget(id) {
   if (id === 'hero') {
     const walksToday = (petData.walks || []).filter(w => w.date === todayStr).length;
     const mealsToday = (petData.meals || []).filter(m => m.date === todayStr).length;
-    return `<div class="bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+    return `<button type="button" onclick="switchTab('pets')" class="w-full text-left bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm active:scale-[0.99] transition">
       <div class="h-28 bg-gradient-to-br from-teal-400 via-teal-500 to-emerald-600 relative flex items-end p-4">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)]"></div>
         <div class="relative flex items-center gap-3 w-full">
           <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30">${emoji}</div>
-          <div class="text-white min-w-0">
+          <div class="text-white min-w-0 flex-1">
             <div class="font-bold text-lg leading-tight">${petData.name || 'Любимец'}</div>
             <div class="text-xs text-white/80">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
           </div>
+          <div class="text-white/80 text-xs font-semibold shrink-0">Профил ›</div>
         </div>
       </div>
       <div class="grid grid-cols-3 divide-x divide-stone-100 dark:divide-slate-800">
@@ -397,22 +398,26 @@ function renderWidget(id) {
         <div class="py-3 text-center"><div class="text-base font-extrabold text-sky-500">${walksToday}</div><div class="text-[10px] text-slate-400">разходки</div></div>
         <div class="py-3 text-center"><div class="text-base font-extrabold text-amber-500">${(petData.health||[]).filter(h=>h.date===todayStr).length}</div><div class="text-[10px] text-slate-400">здраве</div></div>
       </div>
-    </div>`;
+    </button>`;
   }
 
   if (id === 'quick') {
-    return `<div class="grid grid-cols-4 gap-2">
-      <button onclick="openModal('meal')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
-        <div class="text-xl mb-1">🥣</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Храна</div>
+    return `<div class="grid grid-cols-2 gap-2.5">
+      <button onclick="openModal('meal')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
+        <span class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-xl shrink-0">🥣</span>
+        <span><span class="block font-bold text-sm">Хранене</span><span class="block text-[11px] text-slate-400">порция / награда</span></span>
       </button>
-      <button onclick="openModal('walk')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
-        <div class="text-xl mb-1">🚶</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Разходка</div>
+      <button onclick="openModal('walk')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
+        <span class="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-xl shrink-0">🚶</span>
+        <span><span class="block font-bold text-sm">Разходка</span><span class="block text-[11px] text-slate-400">време · място</span></span>
       </button>
-      <button onclick="openModal('health')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
-        <div class="text-xl mb-1">💊</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Здраве</div>
+      <button onclick="openModal('health')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
+        <span class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-xl shrink-0">💊</span>
+        <span><span class="block font-bold text-sm">Здраве</span><span class="block text-[11px] text-slate-400">ваксина · хапче</span></span>
       </button>
-      <button onclick="openModal('hygiene')" class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 text-center active:scale-[0.97] shadow-sm">
-        <div class="text-xl mb-1">🛁</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">Грижи</div>
+      <button onclick="openModal('hygiene')" class="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-stone-200/80 dark:border-slate-800 shadow-sm active:scale-[0.98] text-left">
+        <span class="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-xl shrink-0">🛁</span>
+        <span><span class="block font-bold text-sm">Грижи</span><span class="block text-[11px] text-slate-400">къпане · нокти</span></span>
       </button>
     </div>`;
   }
@@ -865,20 +870,22 @@ function openModal(type) {
           <button type="button" data-w="snow" onclick="selectWeather('snow')" class="weather-btn flex-1 py-3 rounded-xl border-2 border-stone-200 dark:border-slate-700 text-xl">❄️</button>
         </div>
       </div>
-      <div class="rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 p-3">
-        <div class="flex items-center justify-between mb-1">
-          <label class="text-xs font-semibold text-slate-400">Локация</label>
-          <button type="button" onclick="captureWalkLocation()" class="text-xs font-bold text-sky-500">📍 Вземи GPS</button>
+      <div class="rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 p-3 space-y-2">
+        <label class="text-xs font-semibold text-slate-400">Място на разходката</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="captureWalkLocation()" class="flex-1 py-2 rounded-lg bg-sky-500 text-white text-[11px] font-bold">📍 GPS сега</button>
+          <button type="button" onclick="document.getElementById('m-place-search').focus()" class="flex-1 py-2 rounded-lg border border-stone-200 dark:border-slate-600 text-[11px] font-bold">🔍 Търси</button>
         </div>
-        <p id="m-place-label" class="text-sm text-slate-600 dark:text-slate-300">Натисни „Вземи GPS“ за автоматично място</p>
+        <input id="m-place-search" type="text" placeholder="Парк, квартал, град…" class="w-full px-3 py-2.5 rounded-lg border border-stone-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none" oninput="searchPlaceDebounced(this.value)">
+        <div id="m-place-results" class="space-y-1 max-h-28 overflow-y-auto hidden"></div>
+        <p id="m-place-label" class="text-sm text-slate-600 dark:text-slate-300">Или напиши място / ползвай GPS</p>
         <input type="hidden" id="m-lat" value="">
         <input type="hidden" id="m-lng" value="">
         <input type="hidden" id="m-place" value="">
         <div id="m-map-link" class="hidden mt-1"></div>
+        <p class="text-[10px] text-slate-400">Ако вече си вкъщи – потърси парка или въведи името ръчно.</p>
       </div>`;
     window._selectedWeather = 'sun';
-    // auto-try location
-    setTimeout(() => captureWalkLocation(true), 300);
   } else if (type === 'meal') {
     const active = (petData.foods || []).filter(f => f.active && !f.archived);
     const opts = active.map(f => `<option value="${f.id}">${f.type === 'treat' ? '🦴 ' : '🥣 '}${f.name}</option>`).join('');
@@ -950,7 +957,7 @@ async function captureWalkLocation(silent) {
   const mapLink = document.getElementById('m-map-link');
   if (!label) return;
   if (!navigator.geolocation) {
-    if (!silent) label.textContent = 'GPS не се поддържа на това устройство';
+    if (!silent) label.textContent = 'GPS не се поддържа – потърси място по име';
     return;
   }
   label.textContent = 'Определяне на локация…';
@@ -960,12 +967,19 @@ async function captureWalkLocation(silent) {
         enableHighAccuracy: true, timeout: 12000, maximumAge: 60000
       });
     });
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    document.getElementById('m-lat').value = lat;
-    document.getElementById('m-lng').value = lng;
-    // Reverse geocode via OpenStreetMap Nominatim (no API key)
-    let place = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    applyWalkCoords(pos.coords.latitude, pos.coords.longitude);
+  } catch (err) {
+    label.textContent = silent ? 'Потърси място или въведи име' : 'Няма GPS – потърси парк/квартал по име';
+  }
+}
+
+async function applyWalkCoords(lat, lng, nameHint) {
+  const label = document.getElementById('m-place-label');
+  const mapLink = document.getElementById('m-map-link');
+  document.getElementById('m-lat').value = lat;
+  document.getElementById('m-lng').value = lng;
+  let place = nameHint || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  if (!nameHint) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
@@ -978,16 +992,74 @@ async function captureWalkLocation(silent) {
         const city = a.city || a.town || a.village || '';
         if (city && place !== city) place = `${place}, ${city}`;
       }
-    } catch (e) { /* keep coords label */ }
-    document.getElementById('m-place').value = place;
-    label.textContent = place;
-    if (mapLink) {
-      mapLink.classList.remove('hidden');
-      mapLink.innerHTML = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="text-xs text-sky-500 font-semibold">Отвори в Google Maps →</a>`;
-    }
-  } catch (err) {
-    label.textContent = silent ? 'Локацията е по избор – натисни „Вземи GPS“' : 'Няма достъп до локация (разреши в браузъра)';
+    } catch (e) {}
   }
+  document.getElementById('m-place').value = place;
+  if (label) label.textContent = '✓ ' + place;
+  if (mapLink) {
+    mapLink.classList.remove('hidden');
+    mapLink.innerHTML = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="text-xs text-sky-500 font-semibold">Отвори в Google Maps →</a>`;
+  }
+  const results = document.getElementById('m-place-results');
+  if (results) results.classList.add('hidden');
+}
+
+let _placeSearchTimer = null;
+function searchPlaceDebounced(q) {
+  clearTimeout(_placeSearchTimer);
+  const results = document.getElementById('m-place-results');
+  if (!q || q.trim().length < 2) {
+    if (results) { results.innerHTML = ''; results.classList.add('hidden'); }
+    // allow free-text place without coords
+    const placeEl = document.getElementById('m-place');
+    if (placeEl) placeEl.value = q.trim();
+    const label = document.getElementById('m-place-label');
+    if (label && q.trim()) label.textContent = 'Ръчно: ' + q.trim();
+    return;
+  }
+  _placeSearchTimer = setTimeout(() => searchPlace(q.trim()), 400);
+}
+
+async function searchPlace(q) {
+  const results = document.getElementById('m-place-results');
+  if (!results) return;
+  results.classList.remove('hidden');
+  results.innerHTML = `<p class="text-[11px] text-slate-400 px-1">Търсене…</p>`;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`,
+      { headers: { 'Accept-Language': 'bg' } }
+    );
+    const data = await res.json();
+    if (!data.length) {
+      results.innerHTML = `<p class="text-[11px] text-slate-400 px-1">Няма резултати – ще се запише като текст</p>`;
+      document.getElementById('m-place').value = q;
+      document.getElementById('m-lat').value = '';
+      document.getElementById('m-lng').value = '';
+      return;
+    }
+    results.innerHTML = data.map(r => {
+      const name = (r.display_name || '').split(',').slice(0, 3).join(',');
+      return `<button type="button" onclick="selectSearchedPlace(${r.lat},${r.lon},${JSON.stringify(name)})" class="w-full text-left px-2 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-slate-700 text-xs">${name}</button>`;
+    }).join('');
+  } catch (e) {
+    results.innerHTML = `<p class="text-[11px] text-red-400 px-1">Грешка при търсене</p>`;
+  }
+}
+
+function selectSearchedPlace(lat, lng, name) {
+  applyWalkCoords(lat, lng, name);
+  const search = document.getElementById('m-place-search');
+  if (search) search.value = name;
+}
+
+function toggleFab() {
+  const sheet = document.getElementById('fab-sheet');
+  if (!sheet) return;
+  sheet.classList.toggle('hidden');
+}
+function closeFab() {
+  document.getElementById('fab-sheet')?.classList.add('hidden');
 }
 
 function closeModal() {
@@ -1003,7 +1075,9 @@ async function saveModal() {
     item.weather = window._selectedWeather || 'sun';
     item.lat = parseFloat(document.getElementById('m-lat')?.value) || null;
     item.lng = parseFloat(document.getElementById('m-lng')?.value) || null;
-    item.place = document.getElementById('m-place')?.value || '';
+    item.place = document.getElementById('m-place')?.value
+      || document.getElementById('m-place-search')?.value.trim()
+      || '';
     petData.walks = [item, ...(petData.walks || [])];
   } else if (activeModalType === 'meal') {
     item.time = document.getElementById('m-time').value;
@@ -1089,6 +1163,7 @@ async function deleteItem(type, id) {
 }
 
 function switchTab(id) {
+  closeFab();
   ['home', 'health', 'pets'].forEach(t => {
     document.getElementById('tab-' + t)?.classList.toggle('active', t === id);
     const nav = document.getElementById('nav-' + t);

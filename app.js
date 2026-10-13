@@ -503,7 +503,7 @@ function renderWidget(id) {
   }
 
   if (id === 'food') {
-    const foods = (petData.foods || []).filter(f => f.active);
+    const foods = (petData.foods || []).filter(f => f.active && !f.archived);
     const main = foods.filter(f => f.type === 'main');
     const treats = foods.filter(f => f.type === 'treat');
     if (!foods.length) {
@@ -611,6 +611,31 @@ function renderApp() {
   renderFoodsList();
 }
 
+function foodCardHtml(f) {
+  const notes = (f.notes || '').replace(/</g, '&lt;');
+  return `<div class="rounded-xl bg-stone-50 dark:bg-slate-800/50 p-3 space-y-2 ${f.archived ? 'opacity-70' : ''}">
+    <div class="flex items-center gap-3">
+      <div class="text-lg">${f.type === 'treat' ? '🦴' : '🥣'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold truncate">${f.name}</div>
+        <div class="text-[10px] text-slate-400">${f.type === 'treat' ? 'Награда' : 'Основна'}${f.bagKg ? ' · чувал ' + f.bagKg + ' кг' : ''}${f.archived ? ' · архив' : ''}</div>
+      </div>
+      ${!f.archived ? `<label class="flex items-center gap-1 text-[11px] text-slate-500 shrink-0">
+        <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFoodActive('${f.id}', this.checked)" class="rounded accent-teal-600">
+        активна
+      </label>` : ''}
+    </div>
+    ${notes ? `<p class="text-[11px] text-slate-500 pl-8">📝 ${notes}</p>` : ''}
+    <div class="flex flex-wrap gap-2 pl-8">
+      <button onclick="editFoodNotes('${f.id}')" class="text-[11px] font-semibold text-teal-600">Бележка</button>
+      ${f.archived
+        ? `<button onclick="setFoodArchived('${f.id}', false)" class="text-[11px] font-semibold text-emerald-600">Възстанови</button>`
+        : `<button onclick="setFoodArchived('${f.id}', true)" class="text-[11px] font-semibold text-amber-600">Архивирай</button>`}
+      <button onclick="deleteFood('${f.id}')" class="text-[11px] font-semibold text-red-500">Изтрий</button>
+    </div>
+  </div>`;
+}
+
 function renderFoodsList() {
   const el = document.getElementById('foods-list');
   if (!el) return;
@@ -619,19 +644,18 @@ function renderFoodsList() {
     el.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">Няма добавени храни. Добави основна гранула или награда.</p>`;
     return;
   }
-  el.innerHTML = foods.map(f => `
-    <div class="flex items-center gap-3 p-2.5 rounded-xl bg-stone-50 dark:bg-slate-800/50">
-      <div class="text-lg">${f.type === 'treat' ? '🦴' : '🥣'}</div>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold truncate">${f.name}</div>
-        <div class="text-[10px] text-slate-400">${f.type === 'treat' ? 'Награда' : 'Основна'}${f.bagKg ? ' · чувал ' + f.bagKg + ' кг' : ''}</div>
-      </div>
-      <label class="flex items-center gap-1.5 text-[11px] text-slate-500">
-        <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFoodActive('${f.id}', this.checked)" class="rounded accent-teal-600">
-        активна
-      </label>
-      <button onclick="deleteFood('${f.id}')" class="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>
-    </div>`).join('');
+  const active = foods.filter(f => !f.archived);
+  const archived = foods.filter(f => f.archived);
+  let html = active.length
+    ? active.map(foodCardHtml).join('')
+    : `<p class="text-xs text-slate-400 py-2">Няма активни – всички са в архива.</p>`;
+  if (archived.length) {
+    html += `<details class="mt-2">
+      <summary class="text-[11px] font-semibold text-slate-400 cursor-pointer py-1">Архив (${archived.length})</summary>
+      <div class="space-y-2 mt-2">${archived.map(foodCardHtml).join('')}</div>
+    </details>`;
+  }
+  el.innerHTML = html;
 }
 
 function openAddFoodModal() {
@@ -652,19 +676,41 @@ function openAddFoodModal() {
     <div>
       <label class="block text-xs font-semibold text-slate-400 mb-1">Чувал (кг) – по избор</label>
       <input id="m-food-bag" type="number" step="0.5" placeholder="12" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-400 mb-1">Бележка (по избор)</label>
+      <textarea id="m-food-notes" rows="2" placeholder="харесва я / изпражненията миришат по-малко…" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none"></textarea>
     </div>`;
   window._foodType = 'main';
   document.getElementById('modal').classList.remove('hidden');
 }
 
+function editFoodNotes(id) {
+  const f = (petData.foods || []).find(x => x.id === id);
+  if (!f) return;
+  activeModalType = 'editfoodnotes';
+  window._editFoodId = id;
+  document.getElementById('modal-title').textContent = 'Бележка: ' + f.name;
+  document.getElementById('modal-body').innerHTML = `
+    <p class="text-xs text-slate-400">Свободен текст – вкус, миризма, стомах, козина…</p>
+    <textarea id="m-food-notes" rows="4" class="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800 text-sm outline-none resize-none">${(f.notes || '').replace(/</g,'&lt;')}</textarea>`;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
 async function toggleFoodActive(id, on) {
-  const foods = (petData.foods || []).map(f => f.id === id ? { ...f, active: on } : f);
+  const foods = (petData.foods || []).map(f => f.id === id ? { ...f, active: on, archived: on ? false : f.archived } : f);
+  petData.foods = foods;
+  await db.collection('pets').doc(currentPetId).update({ foods });
+}
+
+async function setFoodArchived(id, archived) {
+  const foods = (petData.foods || []).map(f => f.id === id ? { ...f, archived, active: archived ? false : f.active } : f);
   petData.foods = foods;
   await db.collection('pets').doc(currentPetId).update({ foods });
 }
 
 async function deleteFood(id) {
-  if (!confirm('Премахване на тази храна?')) return;
+  if (!confirm('Изтриване завинаги? По-добре архивирай, ако искаш история.')) return;
   const foods = (petData.foods || []).filter(f => f.id !== id);
   petData.foods = foods;
   await db.collection('pets').doc(currentPetId).update({ foods });
@@ -689,24 +735,36 @@ function renderPetsList() {
   }).join('');
 }
 
-// —— Customize UI ——
+// —— Customize UI (live preview) ——
 function openCustomize() {
   document.getElementById('customize-screen').classList.remove('hidden');
   renderCustomizeList();
+  renderCustomizePreview();
 }
 function closeCustomize() {
   document.getElementById('customize-screen').classList.add('hidden');
   saveWidgets(widgetConfig);
   renderHomeWidgets();
 }
+function renderCustomizePreview() {
+  const host = document.getElementById('customize-preview');
+  if (!host) return;
+  const html = widgetConfig.filter(w => w.on).map(w => {
+    const content = renderWidget(w.id);
+    return content ? `<div class="widget">${content}</div>` : '';
+  }).join('');
+  host.innerHTML = html || `<p class="text-xs text-slate-400 text-center py-6">Няма включени модули</p>`;
+}
 function renderCustomizeList() {
   const list = document.getElementById('customize-list');
+  if (!list) return;
   list.innerHTML = widgetConfig.map((w, i) => {
     const def = WIDGET_DEFS.find(d => d.id === w.id) || { label: w.id, icon: '📦' };
-    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-3.5 flex items-center gap-3 shadow-sm">
-      <div class="text-xl w-8 text-center">${def.icon}</div>
+    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border ${w.on ? 'border-teal-300 dark:border-teal-800' : 'border-stone-200 dark:border-slate-800'} p-3.5 flex items-center gap-3 shadow-sm">
+      <div class="text-xl w-8 text-center ${w.on ? '' : 'opacity-40'}">${def.icon}</div>
       <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold">${def.label}</div>
+        <div class="text-sm font-semibold ${w.on ? '' : 'text-slate-400'}">${def.label}</div>
+        <div class="text-[10px] text-slate-400">${w.on ? 'видима' : 'скрита'}</div>
       </div>
       <div class="flex items-center gap-1">
         <button onclick="moveWidget(${i},-1)" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-500 ${i===0?'opacity-30':''}" ${i===0?'disabled':''}>↑</button>
@@ -722,6 +780,9 @@ function renderCustomizeList() {
 function toggleWidget(index, on) {
   widgetConfig[index].on = on;
   saveWidgets(widgetConfig);
+  renderCustomizeList();
+  renderCustomizePreview();
+  renderHomeWidgets();
 }
 function moveWidget(index, dir) {
   const next = index + dir;
@@ -731,6 +792,8 @@ function moveWidget(index, dir) {
   widgetConfig[next] = tmp;
   saveWidgets(widgetConfig);
   renderCustomizeList();
+  renderCustomizePreview();
+  renderHomeWidgets();
 }
 
 // —— Profile / settings ——
@@ -817,7 +880,7 @@ function openModal(type) {
     // auto-try location
     setTimeout(() => captureWalkLocation(true), 300);
   } else if (type === 'meal') {
-    const active = (petData.foods || []).filter(f => f.active);
+    const active = (petData.foods || []).filter(f => f.active && !f.archived);
     const opts = active.map(f => `<option value="${f.id}">${f.type === 'treat' ? '🦴 ' : '🥣 '}${f.name}</option>`).join('');
     body.innerHTML = `
       <div>
@@ -981,13 +1044,25 @@ async function saveModal() {
     const name = document.getElementById('m-food-name')?.value.trim();
     if (!name) return alert('Въведи име на храната');
     const bag = parseFloat(document.getElementById('m-food-bag')?.value) || null;
+    const notes = document.getElementById('m-food-notes')?.value.trim() || '';
     petData.foods = [{
       id: 'f' + Date.now(),
       name,
       type: window._foodType || 'main',
       active: true,
-      bagKg: bag
+      archived: false,
+      bagKg: bag,
+      notes
     }, ...(petData.foods || [])];
+    try {
+      await db.collection('pets').doc(currentPetId).update({ foods: petData.foods });
+      closeModal();
+    } catch (e) { alert('Грешка: ' + e.message); }
+    return;
+  } else if (activeModalType === 'editfoodnotes') {
+    const notes = document.getElementById('m-food-notes')?.value.trim() || '';
+    const id = window._editFoodId;
+    petData.foods = (petData.foods || []).map(f => f.id === id ? { ...f, notes } : f);
     try {
       await db.collection('pets').doc(currentPetId).update({ foods: petData.foods });
       closeModal();

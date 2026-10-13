@@ -241,29 +241,27 @@
             <button onclick="openModal('weight')" class="text-[11px] text-teal-600 font-semibold mt-1">+ Запис</button>
           </div>
           <div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm">
-            <div class="text-[10px] text-slate-400 font-semibold uppercase">Следващо</div>
+            <div class="text-[10px] text-slate-400 font-semibold uppercase">Следващо общо</div>
             <div id="next-health-summary" class="text-sm font-semibold mt-0.5 text-amber-600">—</div>
           </div>
         </div>
         <div id="weight-history" class="text-xs text-slate-500 space-y-1 px-1"></div>
+        <!-- Summary cards -->
+        <div id="health-overview-summary" class="space-y-2"></div>
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
             <h3 class="font-bold text-sm">Последни записи</h3>
           </div>
           <div id="health-recent-list" class="space-y-2"></div>
         </div>
-        <button onclick="openGeminiChat()" class="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md active:scale-[0.99]">
-          <span class="text-xl" id="ai-pet-btn-emoji">🐕</span>
-          <span class="text-left"><span class="block font-bold text-sm">Поговори с <span id="ai-pet-btn-name">Макс</span></span><span class="block text-[11px] text-white/80">питай ме за храна, разходки, здраве…</span></span>
-        </button>
       </div>
 
       <div id="health-sub-vaccine" class="hidden space-y-2">
-        <p class="text-[11px] text-slate-400 px-1">Ваксинации и следващи дати</p>
+        <div id="health-vaccine-header" class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm text-xs"></div>
         <div id="health-vaccine-list" class="space-y-2"></div>
       </div>
       <div id="health-sub-parasite" class="hidden space-y-2">
-        <p class="text-[11px] text-slate-400 px-1">Обезпаразитяване (вътрешни / външни)</p>
+        <div id="health-parasite-header" class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm text-xs"></div>
         <div id="health-parasite-list" class="space-y-2"></div>
       </div>
       <div id="health-sub-care" class="hidden space-y-3">
@@ -271,13 +269,25 @@
           <div class="flex items-center justify-between mb-3"><h3 class="font-bold text-sm">Хигиена</h3>
             <button onclick="openModal('hygiene')" class="text-xs text-teal-600 font-semibold">Обнови</button></div>
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Къпане</div><div id="hyg-bath" class="font-semibold mt-0.5">—</div></div>
-            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Нокти</div><div id="hyg-nails" class="font-semibold mt-0.5">—</div></div>
-            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Уши</div><div id="hyg-ears" class="font-semibold mt-0.5">—</div></div>
-            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Зъби</div><div id="hyg-teeth" class="font-semibold mt-0.5">—</div></div>
+            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Къпане</div><div id="hyg-bath" class="font-semibold mt-0.5">—</div><div id="hyg-bath-ago" class="text-[10px] text-slate-400 mt-0.5"></div></div>
+            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Нокти</div><div id="hyg-nails" class="font-semibold mt-0.5">—</div><div id="hyg-nails-ago" class="text-[10px] text-slate-400 mt-0.5"></div></div>
+            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Уши</div><div id="hyg-ears" class="font-semibold mt-0.5">—</div><div id="hyg-ears-ago" class="text-[10px] text-slate-400 mt-0.5"></div></div>
+            <div class="bg-stone-50 dark:bg-slate-800/50 rounded-xl p-3"><div class="text-slate-400">Зъби</div><div id="hyg-teeth" class="font-semibold mt-0.5">—</div><div id="hyg-teeth-ago" class="text-[10px] text-slate-400 mt-0.5"></div></div>
           </div>
         </div>
         <div id="health-other-list" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Day stats overlay -->
+    <div id="day-stats-sheet" class="hidden fixed inset-0 z-[62] max-w-md mx-auto">
+      <div class="absolute inset-0 bg-black/40" onclick="closeDayStats()"></div>
+      <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-3xl p-5 safe-b max-h-[75vh] overflow-y-auto shadow-2xl">
+        <div class="flex items-center justify-between mb-3">
+          <h3 id="day-stats-title" class="font-bold text-base">Днес</h3>
+          <button onclick="closeDayStats()" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-500">✕</button>
+        </div>
+        <div id="day-stats-body" class="space-y-2"></div>
       </div>
     </div>
 

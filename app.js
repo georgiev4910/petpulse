@@ -507,9 +507,10 @@ function renderWidget(id, size) {
     const avInner = petData.photoURL
       ? `<img src="${petData.photoURL}" class="w-full h-full object-cover rounded-2xl" alt="">`
       : emoji;
-    return `<button type="button" onclick="switchTab('pets')" class="w-full text-left bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm active:scale-[0.99] transition">
-      <div class="h-28 relative flex items-end p-4" style="background:linear-gradient(135deg,${theme} 0%,${themeDark} 100%)">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)]"></div>
+    const healthToday = (petData.health || []).filter(h => h.date === todayStr).length;
+    return `<div class="w-full text-left bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+      <button type="button" onclick="switchTab('pets')" class="w-full h-28 relative flex items-end p-4 text-left active:opacity-95" style="background:linear-gradient(135deg,${theme} 0%,${themeDark} 100%)">
+        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_70%_30%,white,transparent_50%)] pointer-events-none"></div>
         <div class="relative flex items-center gap-3 w-full">
           <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur text-white text-2xl flex items-center justify-center border border-white/30 overflow-hidden">${avInner}</div>
           <div class="text-white min-w-0 flex-1">
@@ -518,13 +519,22 @@ function renderWidget(id, size) {
           </div>
           <div class="text-white/80 text-xs font-semibold shrink-0">Профил ›</div>
         </div>
-      </div>
+      </button>
       <div class="grid grid-cols-3 divide-x divide-stone-100 dark:divide-slate-800">
-        <div class="py-3 text-center"><div class="text-base font-extrabold" style="color:${theme}">${mealsToday}</div><div class="text-[10px] text-slate-400">храна</div></div>
-        <div class="py-3 text-center"><div class="text-base font-extrabold text-sky-500">${walksToday}</div><div class="text-[10px] text-slate-400">разходки</div></div>
-        <div class="py-3 text-center"><div class="text-base font-extrabold text-amber-500">${(petData.health||[]).filter(h=>h.date===todayStr).length}</div><div class="text-[10px] text-slate-400">здраве</div></div>
+        <button type="button" onclick="openDayStats('meal')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
+          <div class="text-base font-extrabold" style="color:${theme}">${mealsToday}</div>
+          <div class="text-[10px] text-slate-400">храна</div>
+        </button>
+        <button type="button" onclick="openDayStats('walk')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
+          <div class="text-base font-extrabold text-sky-500">${walksToday}</div>
+          <div class="text-[10px] text-slate-400">разходки</div>
+        </button>
+        <button type="button" onclick="openDayStats('health')" class="py-3 text-center active:bg-stone-50 dark:active:bg-slate-800 transition">
+          <div class="text-base font-extrabold text-amber-500">${healthToday}</div>
+          <div class="text-[10px] text-slate-400">здраве</div>
+        </button>
       </div>
-    </button>`;
+    </div>`;
   }
 
   if (id === 'quick') {
@@ -792,13 +802,24 @@ function classifyHealth(h) {
   return 'other';
 }
 
-function healthCardHtml(h) {
+function healthCardHtml(h, detailed) {
+  const cat = classifyHealth(h);
+  const catLabel = { vaccine: 'Ваксина', parasite: 'Паразити', vet: 'Преглед', other: 'Друго' }[cat] || 'Запис';
+  const overdue = h.nextDate && h.nextDate < new Date().toISOString().slice(0, 10);
+  const u = (petData.usersMeta || {})[h.authorUid] || {};
   return `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm">
     <div class="flex justify-between gap-2">
       <div class="min-w-0">
-        <div class="font-bold text-sm">${h.title}${h.productName ? ' · ' + h.productName : ''}</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">${fmtDate(h.date)}${h.nextDate ? ' → следваща ' + fmtDate(h.nextDate) : ''}</div>
-        ${h.notes ? `<p class="text-xs mt-1 text-slate-600 dark:text-slate-300">${h.notes}</p>` : ''}
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-slate-800 text-slate-500">${catLabel}</span>
+          ${overdue ? '<span class="text-[10px] font-bold text-red-500">просрочено</span>' : ''}
+        </div>
+        <div class="font-bold text-sm mt-1">${h.title}${h.productName ? ' · ' + h.productName : ''}</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">
+          Направено: ${fmtDate(h.date)}${h.nextDate ? ` · Следваща: ${fmtDate(h.nextDate)}` : ''}
+        </div>
+        ${detailed && h.notes ? `<p class="text-xs mt-1.5 text-slate-600 dark:text-slate-300">${h.notes}</p>` : (h.notes ? `<p class="text-xs mt-1 text-slate-600 dark:text-slate-300 line-clamp-2">${h.notes}</p>` : '')}
+        ${detailed && u.name ? `<div class="text-[10px] text-slate-400 mt-1">записано от ${u.name}</div>` : ''}
       </div>
       <div class="flex flex-col gap-1 shrink-0">
         <button onclick="editItem('health','${h.id}')" class="text-slate-400 hover:text-teal-600 text-[11px] font-bold">✎</button>
@@ -808,29 +829,153 @@ function healthCardHtml(h) {
   </div>`;
 }
 
+function lastByCat(items, cat) {
+  return items.filter(h => classifyHealth(h) === cat).sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null;
+}
+function nextByCat(items, cat, todayStr) {
+  return items.filter(h => classifyHealth(h) === cat && h.nextDate)
+    .sort((a, b) => a.nextDate.localeCompare(b.nextDate))
+    .find(h => true) || null; // earliest nextDate overall including overdue
+}
+
 function renderHealthLists() {
   const items = [...(petData.health || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const vaccines = items.filter(h => classifyHealth(h) === 'vaccine');
   const parasites = items.filter(h => classifyHealth(h) === 'parasite');
   const other = items.filter(h => !['vaccine', 'parasite'].includes(classifyHealth(h)));
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const empty = (t) => `<p class="text-xs text-slate-400 text-center py-6">${t}</p>`;
-  const setList = (id, arr, emptyMsg) => {
+  const setList = (id, arr, emptyMsg, detailed) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = arr.length ? arr.map(healthCardHtml).join('') : empty(emptyMsg);
+    el.innerHTML = arr.length ? arr.map(h => healthCardHtml(h, detailed)).join('') : empty(emptyMsg);
   };
-  setList('health-recent-list', items.slice(0, 5), 'Няма записи още');
-  setList('health-vaccine-list', vaccines, 'Няма записани ваксини');
-  setList('health-parasite-list', parasites, 'Няма записано обезпаразитяване');
-  setList('health-other-list', other, 'Няма други здравни записи');
+  setList('health-recent-list', items.slice(0, 5), 'Няма записи още', false);
+  setList('health-vaccine-list', vaccines, 'Няма записани ваксини', true);
+  setList('health-parasite-list', parasites, 'Няма записано обезпаразитяване', true);
+  setList('health-other-list', other, 'Няма други здравни записи', true);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const upcoming = items.filter(h => h.nextDate && h.nextDate >= todayStr).sort((a, b) => a.nextDate.localeCompare(b.nextDate));
+  const upcoming = items.filter(h => h.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate));
+  const nextDue = upcoming[0];
   const nextEl = document.getElementById('next-health-summary');
   if (nextEl) {
-    nextEl.textContent = upcoming[0] ? `${upcoming[0].title} · ${fmtDate(upcoming[0].nextDate)}` : 'Няма планирани';
+    if (!nextDue) nextEl.textContent = 'Няма планирани';
+    else {
+      const overdue = nextDue.nextDate < todayStr;
+      nextEl.innerHTML = `${nextDue.title}<br><span class="text-[11px] ${overdue ? 'text-red-500' : ''}">${fmtDate(nextDue.nextDate)}${overdue ? ' · просрочено' : ''}</span>`;
+    }
   }
+
+  // Overview summary cards
+  const sumEl = document.getElementById('health-overview-summary');
+  if (sumEl) {
+    const lastV = lastByCat(items, 'vaccine');
+    const nextV = vaccines.filter(h => h.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
+    const lastP = lastByCat(items, 'parasite');
+    const nextP = parasites.filter(h => h.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
+    const hyg = petData.hygiene || {};
+    const card = (title, lastLabel, nextLabel, onClick) =>
+      `<button type="button" onclick="${onClick}" class="w-full text-left bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/80 dark:border-slate-800 p-3.5 shadow-sm active:scale-[0.99]">
+        <div class="font-bold text-sm mb-1.5">${title}</div>
+        <div class="text-[11px] text-slate-500 space-y-0.5">
+          <div>Последна: <span class="font-semibold text-slate-700 dark:text-slate-200">${lastLabel}</span></div>
+          <div>Следваща: <span class="font-semibold text-amber-600">${nextLabel}</span></div>
+        </div>
+      </button>`;
+    sumEl.innerHTML = [
+      card('💉 Ваксини',
+        lastV ? `${lastV.title} · ${fmtDate(lastV.date)}` : 'няма запис',
+        nextV ? fmtDate(nextV.nextDate) : '—',
+        "setHealthSub('vaccine')"),
+      card('🐛 Обезпаразитяване',
+        lastP ? `${lastP.title} · ${fmtDate(lastP.date)}` : 'няма запис',
+        nextP ? fmtDate(nextP.nextDate) : '—',
+        "setHealthSub('parasite')"),
+      card('🛁 Грижи / хигиена',
+        hyg.bath ? `къпане ${fmtDate(hyg.bath)}` : 'няма данни',
+        hyg.nails ? `нокти ${fmtDate(hyg.nails)}` : '—',
+        "setHealthSub('care')")
+    ].join('');
+  }
+
+  // Subtab headers
+  const vHead = document.getElementById('health-vaccine-header');
+  if (vHead) {
+    const lastV = lastByCat(items, 'vaccine');
+    const nextV = vaccines.filter(h => h.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
+    vHead.innerHTML = `<div class="font-bold text-sm mb-1">Ваксини – обобщение</div>
+      <div>Последна: <strong>${lastV ? lastV.title + ' · ' + fmtDate(lastV.date) : '—'}</strong></div>
+      <div class="mt-0.5">Следваща: <strong class="text-amber-600">${nextV ? fmtDate(nextV.nextDate) + (nextV.title ? ' · ' + nextV.title : '') : '—'}</strong></div>
+      <div class="text-slate-400 mt-1">${vaccines.length} записа общо</div>`;
+  }
+  const pHead = document.getElementById('health-parasite-header');
+  if (pHead) {
+    const lastP = lastByCat(items, 'parasite');
+    const nextP = parasites.filter(h => h.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
+    pHead.innerHTML = `<div class="font-bold text-sm mb-1">Обезпаразитяване – обобщение</div>
+      <div>Последно: <strong>${lastP ? lastP.title + ' · ' + fmtDate(lastP.date) : '—'}</strong></div>
+      <div class="mt-0.5">Следващо: <strong class="text-amber-600">${nextP ? fmtDate(nextP.nextDate) + (nextP.title ? ' · ' + nextP.title : '') : '—'}</strong></div>
+      <div class="text-slate-400 mt-1">${parasites.length} записа общо</div>`;
+  }
+
+  // hygiene ago secondary lines
+  const hyg = petData.hygiene || {};
+  ['bath', 'nails', 'ears', 'teeth'].forEach(k => {
+    const el = document.getElementById('hyg-' + k + '-ago');
+    if (el) el.textContent = hyg[k] ? (daysAgo(hyg[k]) || '') : '';
+  });
+}
+
+function openDayStats(kind) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const titleEl = document.getElementById('day-stats-title');
+  const body = document.getElementById('day-stats-body');
+  if (!body) return;
+  let list = [];
+  if (kind === 'meal') {
+    if (titleEl) titleEl.textContent = 'Хранене днес';
+    list = (petData.meals || []).filter(m => m.date === todayStr)
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    body.innerHTML = list.length ? list.map(m => {
+      const u = (petData.usersMeta || {})[m.authorUid] || {};
+      return `<div class="p-3 rounded-xl bg-stone-50 dark:bg-slate-800 flex justify-between gap-2">
+        <div>
+          <div class="font-bold text-sm">${m.amount ? m.amount + ' г' : 'Хранене'}${m.foodName ? ' · ' + m.foodName : ''}</div>
+          <div class="text-[11px] text-slate-400">${m.time || '—'} · ${u.name || 'Стопанин'}</div>
+        </div>
+        <div class="flex gap-1"><button onclick="closeDayStats();editItem('meal','${m.id}')" class="text-[11px] font-bold text-teal-600">✎</button>
+        <button onclick="closeDayStats();deleteItem('meal','${m.id}')" class="text-slate-400">✕</button></div>
+      </div>`;
+    }).join('') : `<p class="text-xs text-slate-400 text-center py-6">Няма хранене днес</p>
+      <button onclick="closeDayStats();openModal('meal')" class="w-full py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">+ Добави</button>`;
+  } else if (kind === 'walk') {
+    if (titleEl) titleEl.textContent = 'Разходки днес';
+    list = (petData.walks || []).filter(w => w.date === todayStr)
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    body.innerHTML = list.length ? list.map(w => {
+      const u = (petData.usersMeta || {})[w.authorUid] || {};
+      return `<div class="p-3 rounded-xl bg-stone-50 dark:bg-slate-800 flex justify-between gap-2">
+        <div>
+          <div class="font-bold text-sm">${w.duration || '?'} мин${w.place ? ' · ' + w.place : ''}</div>
+          <div class="text-[11px] text-slate-400">${w.time || '—'} · ${u.name || 'Стопанин'}${w.weather ? ' · ' + w.weather : ''}</div>
+        </div>
+        <div class="flex gap-1"><button onclick="closeDayStats();editItem('walk','${w.id}')" class="text-[11px] font-bold text-teal-600">✎</button>
+        <button onclick="closeDayStats();deleteItem('walk','${w.id}')" class="text-slate-400">✕</button></div>
+      </div>`;
+    }).join('') : `<p class="text-xs text-slate-400 text-center py-6">Няма разходки днес</p>
+      <button onclick="closeDayStats();openModal('walk')" class="w-full py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">+ Добави</button>`;
+  } else {
+    if (titleEl) titleEl.textContent = 'Здраве днес';
+    list = (petData.health || []).filter(h => h.date === todayStr);
+    body.innerHTML = list.length ? list.map(h => healthCardHtml(h, true)).join('')
+      : `<p class="text-xs text-slate-400 text-center py-6">Няма здравни записи днес</p>
+      <button onclick="closeDayStats();openModal('health')" class="w-full py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">+ Добави</button>`;
+  }
+  document.getElementById('day-stats-sheet')?.classList.remove('hidden');
+}
+function closeDayStats() {
+  document.getElementById('day-stats-sheet')?.classList.add('hidden');
 }
 
 let healthSub = 'overview';

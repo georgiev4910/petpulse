@@ -341,18 +341,20 @@
 <div id="customize-screen" class="hidden fixed inset-0 z-[70] bg-stone-100 dark:bg-slate-950 max-w-md mx-auto flex flex-col">
   <div class="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-stone-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
     <div><h2 class="font-bold text-base">Персонализирай екрана</h2>
-      <p class="text-[11px] text-slate-400">Промените се виждат веднага в прегледа</p></div>
+      <p class="text-[11px] text-slate-400">Влачи · тап = вкл/изкл · размер ▸</p></div>
     <button onclick="closeCustomize()" class="px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold">Готово</button>
   </div>
-  <div class="flex-1 overflow-y-auto pb-8">
-    <div class="p-3 border-b border-stone-200 dark:border-slate-800">
-      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">Преглед на началото</p>
-      <div id="customize-preview" class="space-y-2 scale-[0.92] origin-top pointer-events-none opacity-95"></div>
+  <div class="flex-1 overflow-y-auto p-3 pb-10">
+    <div class="flex gap-2 mb-3 text-[10px] text-slate-500 px-1">
+      <span class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700">Лента</span>
+      <span class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700">Квадрат</span>
+      <span class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700">Голям</span>
+      <span class="ml-auto text-slate-400">изкл. са долу</span>
     </div>
-    <div class="p-4 space-y-2">
-      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Модули – мести и включвай</p>
-      <div id="customize-list" class="space-y-2"></div>
+    <div id="customize-board" class="grid grid-cols-2 gap-2.5">
+    <!-- filled by JS -->
     </div>
+    <p class="text-[11px] text-slate-400 text-center mt-4 px-4">Тапни модул за включване/изключване. Влачи за ред. Бутонът за размер сменя лента → квадрат → голям.</p>
   </div>
 </div>
 

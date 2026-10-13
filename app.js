@@ -22,48 +22,77 @@ let selectedType = 'dog';
 
 // —— Widget system ——
 const WIDGET_DEFS = [
-  { id: 'hero', label: 'Снимка / заглавие на любимеца', icon: '🐕' },
-  { id: 'quick', label: 'Бързи действия (разходка, хранене)', icon: '⚡' },
-  { id: 'stats', label: 'Днес – статистики', icon: '📊' },
-  { id: 'timeline', label: 'Днес – активност', icon: '📋' },
-  { id: 'upcoming', label: 'Предстои (напомняния)', icon: '⏰' },
-  { id: 'food', label: 'Храна / чувал', icon: '🥣' },
-  { id: 'shared', label: 'Споделено с', icon: '👥' }
+  { id: 'hero', label: 'Профил', icon: '🐕', defaultSize: 'l' },
+  { id: 'quick', label: 'Бързи действия', icon: '⚡', defaultSize: 'l' },
+  { id: 'stats', label: 'Статистики', icon: '📊', defaultSize: 'm' },
+  { id: 'timeline', label: 'Днес', icon: '📋', defaultSize: 'l' },
+  { id: 'upcoming', label: 'Предстои', icon: '⏰', defaultSize: 'm' },
+  { id: 'food', label: 'Храна', icon: '🥣', defaultSize: 'm' },
+  { id: 'shared', label: 'Споделено', icon: '👥', defaultSize: 's' }
 ];
+// sizes: s = лента (2 колони, нисък), m = квадрат (1 колона), l = голям (2 колони)
+const SIZE_LABELS = { s: 'Лента', m: 'Квадрат', l: 'Голям' };
+const SIZE_ORDER = ['s', 'm', 'l'];
 
 const DEFAULT_WIDGETS = [
-  { id: 'hero', on: true },
-  { id: 'quick', on: true },
-  { id: 'stats', on: true },
-  { id: 'timeline', on: true },
-  { id: 'upcoming', on: true },
-  { id: 'food', on: true },
-  { id: 'shared', on: false }
+  { id: 'hero', on: true, size: 'l' },
+  { id: 'quick', on: true, size: 'l' },
+  { id: 'stats', on: true, size: 'm' },
+  { id: 'timeline', on: true, size: 'l' },
+  { id: 'upcoming', on: true, size: 'm' },
+  { id: 'food', on: true, size: 'm' },
+  { id: 'shared', on: false, size: 's' }
 ];
 
 function widgetKey() {
   return 'petpulse_widgets_' + (currentUser?.uid || 'guest');
 }
 
+function normalizeWidget(w) {
+  const def = WIDGET_DEFS.find(d => d.id === w.id);
+  return {
+    id: w.id,
+    on: w.on !== false,
+    size: SIZE_ORDER.includes(w.size) ? w.size : (def?.defaultSize || 'l')
+  };
+}
+
 function loadWidgets() {
   try {
     const raw = localStorage.getItem(widgetKey());
     if (raw) {
-      const parsed = JSON.parse(raw);
-      // merge with defs in case new widgets added
+      const parsed = JSON.parse(raw).map(normalizeWidget);
       const ids = new Set(parsed.map(w => w.id));
-      DEFAULT_WIDGETS.forEach(d => { if (!ids.has(d.id)) parsed.push({ ...d }); });
-      return parsed.filter(w => WIDGET_DEFS.some(d => d.id === w.id));
+      DEFAULT_WIDGETS.forEach(d => { if (!ids.has(d.id)) parsed.push(normalizeWidget(d)); });
+      return sortWidgets(parsed.filter(w => WIDGET_DEFS.some(d => d.id === w.id)));
     }
   } catch (e) {}
-  return DEFAULT_WIDGETS.map(w => ({ ...w }));
+  return DEFAULT_WIDGETS.map(normalizeWidget);
+}
+
+function sortWidgets(list) {
+  // active first (keep relative order), inactive at bottom
+  const on = list.filter(w => w.on);
+  const off = list.filter(w => !w.on);
+  return [...on, ...off];
 }
 
 function saveWidgets(list) {
-  localStorage.setItem(widgetKey(), JSON.stringify(list));
+  widgetConfig = sortWidgets(list);
+  localStorage.setItem(widgetKey(), JSON.stringify(widgetConfig));
 }
 
-let widgetConfig = DEFAULT_WIDGETS.map(w => ({ ...w }));
+let widgetConfig = DEFAULT_WIDGETS.map(normalizeWidget);
+
+function sizeClass(size) {
+  if (size === 'm') return 'col-span-1';
+  return 'col-span-2'; // s and l full width
+}
+function sizeMinH(size) {
+  if (size === 's') return 'min-h-[52px]';
+  if (size === 'm') return 'min-h-[120px]';
+  return 'min-h-[100px]';
+}
 
 (function initDark() {
   const saved = localStorage.getItem('petpulse_dark');
@@ -381,7 +410,7 @@ function calcAge(birthdate) {
 }
 
 // —— Render widgets ——
-function renderWidget(id) {
+function renderWidget(id, size) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const emoji = petData.type === 'cat' ? '🐈' : (petData.type === 'dog' ? '🐕' : '🐾');
   const age = calcAge(petData.birthdate);
@@ -588,11 +617,14 @@ function renderWidget(id) {
 function renderHomeWidgets() {
   const host = document.getElementById('tab-home');
   if (!host) return;
-  const html = widgetConfig.filter(w => w.on).map(w => {
-    const content = renderWidget(w.id);
-    return content ? `<div class="widget" data-wid="${w.id}">${content}</div>` : '';
+  const active = widgetConfig.filter(w => w.on);
+  const html = active.map(w => {
+    const content = renderWidget(w.id, w.size);
+    if (!content) return '';
+    return `<div class="widget ${sizeClass(w.size)} ${sizeMinH(w.size)}" data-wid="${w.id}">${content}</div>`;
   }).join('');
-  host.innerHTML = html || `<p class="text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
+  host.className = 'pane active grid grid-cols-2 gap-2.5 content-start';
+  host.innerHTML = html || `<p class="col-span-2 text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
 }
 
 function renderApp() {
@@ -838,61 +870,89 @@ function renderPetsList() {
 // —— Customize UI (live preview) ——
 function openCustomize() {
   document.getElementById('customize-screen').classList.remove('hidden');
-  renderCustomizeList();
-  renderCustomizePreview();
+  renderCustomizeBoard();
 }
 function closeCustomize() {
   document.getElementById('customize-screen').classList.add('hidden');
   saveWidgets(widgetConfig);
   renderHomeWidgets();
 }
-function renderCustomizePreview() {
-  const host = document.getElementById('customize-preview');
-  if (!host) return;
-  const html = widgetConfig.filter(w => w.on).map(w => {
-    const content = renderWidget(w.id);
-    return content ? `<div class="widget">${content}</div>` : '';
-  }).join('');
-  host.innerHTML = html || `<p class="text-xs text-slate-400 text-center py-6">Няма включени модули</p>`;
-}
-function renderCustomizeList() {
-  const list = document.getElementById('customize-list');
-  if (!list) return;
-  list.innerHTML = widgetConfig.map((w, i) => {
+
+function renderCustomizeBoard() {
+  const board = document.getElementById('customize-board');
+  if (!board) return;
+  widgetConfig = sortWidgets(widgetConfig);
+  board.innerHTML = widgetConfig.map((w, i) => {
     const def = WIDGET_DEFS.find(d => d.id === w.id) || { label: w.id, icon: '📦' };
-    return `<div class="bg-white dark:bg-slate-900 rounded-2xl border ${w.on ? 'border-teal-300 dark:border-teal-800' : 'border-stone-200 dark:border-slate-800'} p-3.5 flex items-center gap-3 shadow-sm">
-      <div class="text-xl w-8 text-center ${w.on ? '' : 'opacity-40'}">${def.icon}</div>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold ${w.on ? '' : 'text-slate-400'}">${def.label}</div>
-        <div class="text-[10px] text-slate-400">${w.on ? 'видима' : 'скрита'}</div>
+    const activeCls = w.on
+      ? 'bg-white dark:bg-slate-900 border-teal-500 shadow-md ring-1 ring-teal-500/30'
+      : 'bg-stone-200/50 dark:bg-slate-800/40 border-stone-300/50 dark:border-slate-700 opacity-50';
+    const span = sizeClass(w.size);
+    const h = w.size === 's' ? 'min-h-[64px]' : (w.size === 'm' ? 'min-h-[110px]' : 'min-h-[140px]');
+    return `<div draggable="true"
+      data-idx="${i}"
+      ondragstart="widgetDragStart(event,${i})"
+      ondragover="widgetDragOver(event)"
+      ondrop="widgetDrop(event,${i})"
+      ondragend="widgetDragEnd(event)"
+      onclick="widgetTapToggle(${i}, event)"
+      class="customize-tile ${span} ${h} rounded-2xl border-2 p-3 flex flex-col cursor-grab active:cursor-grabbing select-none transition ${activeCls}">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-lg">${def.icon}</span>
+        <span class="text-xs font-bold flex-1 truncate ${w.on ? '' : 'text-slate-500'}">${def.label}</span>
+        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${w.on ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300' : 'bg-stone-300 text-slate-600'}">${w.on ? 'ON' : 'OFF'}</span>
       </div>
-      <div class="flex items-center gap-1">
-        <button onclick="moveWidget(${i},-1)" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-500 ${i===0?'opacity-30':''}" ${i===0?'disabled':''}>↑</button>
-        <button onclick="moveWidget(${i},1)" class="w-8 h-8 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-500 ${i===widgetConfig.length-1?'opacity-30':''}" ${i===widgetConfig.length-1?'disabled':''}>↓</button>
-        <label class="relative inline-flex items-center cursor-pointer ml-1">
-          <input type="checkbox" ${w.on?'checked':''} onchange="toggleWidget(${i},this.checked)" class="sr-only peer">
-          <div class="w-10 h-5 bg-stone-200 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
-        </label>
+      <div class="flex-1 flex items-end justify-between gap-1 mt-auto">
+        <span class="text-[10px] text-slate-400">⠿ влачи</span>
+        <button type="button" onclick="event.stopPropagation();cycleWidgetSize(${i})"
+          class="text-[10px] font-bold px-2 py-1 rounded-lg bg-stone-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-stone-200 dark:border-slate-600">
+          ${SIZE_LABELS[w.size] || 'Голям'} ▸
+        </button>
       </div>
     </div>`;
   }).join('');
 }
-function toggleWidget(index, on) {
-  widgetConfig[index].on = on;
+
+let _dragIdx = null;
+function widgetDragStart(e, i) {
+  _dragIdx = i;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('opacity-40', 'scale-95');
+}
+function widgetDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function widgetDrop(e, toIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (_dragIdx === null || _dragIdx === toIdx) return;
+  const list = [...widgetConfig];
+  const [item] = list.splice(_dragIdx, 1);
+  list.splice(toIdx, 0, item);
+  saveWidgets(list);
+  renderCustomizeBoard();
+  renderHomeWidgets();
+  _dragIdx = null;
+}
+function widgetDragEnd(e) {
+  e.currentTarget.classList.remove('opacity-40', 'scale-95');
+  _dragIdx = null;
+}
+function widgetTapToggle(i, e) {
+  // ignore if click was on size button (stopPropagation handles) or during drag
+  if (e && e.target.closest('button')) return;
+  widgetConfig[i].on = !widgetConfig[i].on;
   saveWidgets(widgetConfig);
-  renderCustomizeList();
-  renderCustomizePreview();
+  renderCustomizeBoard();
   renderHomeWidgets();
 }
-function moveWidget(index, dir) {
-  const next = index + dir;
-  if (next < 0 || next >= widgetConfig.length) return;
-  const tmp = widgetConfig[index];
-  widgetConfig[index] = widgetConfig[next];
-  widgetConfig[next] = tmp;
+function cycleWidgetSize(i) {
+  const cur = widgetConfig[i].size || 'l';
+  const next = SIZE_ORDER[(SIZE_ORDER.indexOf(cur) + 1) % SIZE_ORDER.length];
+  widgetConfig[i].size = next;
   saveWidgets(widgetConfig);
-  renderCustomizeList();
-  renderCustomizePreview();
+  renderCustomizeBoard();
   renderHomeWidgets();
 }
 
@@ -1576,7 +1636,7 @@ async function sendGemini() {
   while (history.length && history[0].role !== 'user') history.shift();
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

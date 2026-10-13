@@ -11,6 +11,13 @@
   <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{brand:{500:'#14b8a6',600:'#0d9488'}}}}}</script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root{
+      --pet:#0d9488;
+      --pet-dark:#0f766e;
+      --pet-soft:rgba(13,148,136,.12);
+      --pet-soft-2:rgba(13,148,136,.22);
+      --pet-ring:rgba(13,148,136,.35);
+    }
     body{font-family:Inter,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
     .pane{display:none!important}
     .pane.active{display:block!important;animation:fade .2s ease}
@@ -19,6 +26,22 @@
     .safe-b{padding-bottom:env(safe-area-inset-bottom,0)}
     .drawer-open{transform:translateX(0)!important}
     .drawer-bg-open{opacity:1!important;pointer-events:auto!important}
+    /* Theme-driven accents (override Tailwind teal) */
+    .bg-teal-600,.bg-teal-500{background-color:var(--pet)!important}
+    .bg-teal-50{background-color:var(--pet-soft)!important}
+    .text-teal-600,.text-teal-500,.text-teal-700{color:var(--pet)!important}
+    .border-teal-500,.border-teal-300{border-color:var(--pet)!important}
+    .ring-teal-500\/20{--tw-ring-color:var(--pet-ring)!important}
+    .from-teal-400{--tw-gradient-from:var(--pet)!important}
+    .from-teal-500{--tw-gradient-from:var(--pet)!important}
+    .to-teal-600,.to-teal-700{--tw-gradient-to:var(--pet-dark)!important}
+    .to-emerald-600{--tw-gradient-to:var(--pet-dark)!important}
+    .accent-teal-600{accent-color:var(--pet)!important}
+    .shadow-teal-600\/40{--tw-shadow-color:var(--pet-ring)!important}
+    #nav-fab{background:linear-gradient(135deg,var(--pet),var(--pet-dark))!important;box-shadow:0 10px 25px var(--pet-ring)!important}
+    #pet-avatar-box{background:linear-gradient(135deg,var(--pet),var(--pet-dark))!important;box-shadow:0 0 0 2px var(--pet-ring)}
+    nav button.text-teal-600 svg{color:var(--pet)!important}
+    .theme-chip{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--pet)}
   </style>
 </head>
 <body class="bg-stone-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-full antialiased">
@@ -444,12 +467,12 @@
       <div>
         <label class="block text-[11px] font-semibold text-slate-400 mb-1">Акцентен цвят (тема)</label>
         <div class="flex gap-2 flex-wrap">
-          <button onclick="setPetTheme('#0d9488')" class="w-8 h-8 rounded-full bg-teal-600"></button>
-          <button onclick="setPetTheme('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500"></button>
-          <button onclick="setPetTheme('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
-          <button onclick="setPetTheme('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
-          <button onclick="setPetTheme('#ec4899')" class="w-8 h-8 rounded-full bg-pink-500"></button>
-          <button onclick="setPetTheme('#ef4444')" class="w-8 h-8 rounded-full bg-red-500"></button>
+          <button data-theme-color="#0d9488" onclick="setPetTheme('#0d9488')" class="w-8 h-8 rounded-full bg-teal-600"></button>
+          <button data-theme-color="#0ea5e9" onclick="setPetTheme('#0ea5e9')" class="w-8 h-8 rounded-full bg-sky-500"></button>
+          <button data-theme-color="#8b5cf6" onclick="setPetTheme('#8b5cf6')" class="w-8 h-8 rounded-full bg-violet-500"></button>
+          <button data-theme-color="#f59e0b" onclick="setPetTheme('#f59e0b')" class="w-8 h-8 rounded-full bg-amber-500"></button>
+          <button data-theme-color="#ec4899" onclick="setPetTheme('#ec4899')" class="w-8 h-8 rounded-full bg-pink-500"></button>
+          <button data-theme-color="#ef4444" onclick="setPetTheme('#ef4444')" class="w-8 h-8 rounded-full bg-red-500"></button>
         </div>
       </div>
     </div>

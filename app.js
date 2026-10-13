@@ -369,13 +369,28 @@ async function joinWithCode() {
   } catch (e) { alert('Грешка: ' + e.message); }
 }
 
-function switchToPet(petId) {
+function switchToPet(petId, goHome) {
   closePetSwitcher();
+  if (petId === currentPetId) {
+    if (goHome) switchTab('home');
+    else { renderPetsList(); renderFoodsList(); }
+    return;
+  }
   if (unsubPet) unsubPet();
   currentPetId = petId;
   localStorage.setItem('petpulse_active_pet', petId);
   startPetListener();
-  switchTab('home');
+  if (goHome) {
+    switchTab('home');
+  } else {
+    // Stay on Любимци (or current tab) so user can edit/view
+    setTimeout(() => {
+      if (document.getElementById('tab-pets')?.classList.contains('active')) {
+        renderPetsList();
+        renderFoodsList();
+      }
+    }, 150);
+  }
 }
 
 function openPetSwitcher() {
@@ -390,7 +405,7 @@ function openPetSwitcher() {
       const av = p.photoURL
         ? `<img src="${p.photoURL}" class="w-12 h-12 rounded-2xl object-cover" alt="">`
         : `<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center text-xl">${em}</div>`;
-      return `<button onclick="switchToPet('${p.id}')" class="w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800/50'}">
+      return `<button onclick="switchToPet('${p.id}', true)" class="w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${active ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30' : 'border-stone-200 dark:border-slate-700 bg-stone-50 dark:bg-slate-800/50'}">
         ${av}
         <div class="flex-1 min-w-0">
           <div class="font-bold text-sm">${p.name || 'Любимец'}</div>
@@ -698,7 +713,8 @@ function renderApp() {
       avBox.textContent = emoji;
     }
   }
-  applyPetTheme(petData.themeColor || '#0d9488');
+  const defaultTheme = petData.type === 'cat' ? '#ef4444' : (petData.type === 'dog' ? '#0d9488' : '#8b5cf6');
+  applyPetTheme(petData.themeColor || defaultTheme);
   document.getElementById('profile-pet-name').textContent = petData.name || 'любимеца';
   document.getElementById('share-code-display').value = petData.code || '';
   document.getElementById('pet-subtitle').textContent = new Date().toLocaleDateString('bg-BG', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1881,12 +1897,30 @@ function openDrawer() {
 }
 
 // —— Theme & photos ——
+function hexToRgb(hex) {
+  const h = (hex || '#0d9488').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function darkenHex(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  const d = (v) => Math.max(0, Math.round(v * (1 - amount)));
+  return '#' + [d(r), d(g), d(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
 function applyPetTheme(color) {
   const c = color || '#0d9488';
-  document.documentElement.style.setProperty('--pet-theme', c);
-  // update a few key buttons via style when possible
-  const fab = document.getElementById('nav-fab');
-  if (fab) fab.style.background = `linear-gradient(135deg, ${c}, ${c}dd)`;
+  const { r, g, b } = hexToRgb(c);
+  const root = document.documentElement;
+  root.style.setProperty('--pet', c);
+  root.style.setProperty('--pet-dark', darkenHex(c, 0.18));
+  root.style.setProperty('--pet-soft', `rgba(${r},${g},${b},0.12)`);
+  root.style.setProperty('--pet-soft-2', `rgba(${r},${g},${b},0.22)`);
+  root.style.setProperty('--pet-ring', `rgba(${r},${g},${b},0.35)`);
+  // mark selected theme chip in drawer
+  document.querySelectorAll('[data-theme-color]').forEach(btn => {
+    btn.classList.toggle('theme-chip', btn.getAttribute('data-theme-color') === c);
+  });
 }
 async function setPetTheme(color) {
   if (!currentPetId) return;

@@ -105,13 +105,63 @@
     }
     .timeline-dot{width:0.65rem;height:0.65rem;border-radius:50%;flex-shrink:0;margin-top:0.3rem}
     .photo-hero{
-      position:relative;border-radius:1.35rem;overflow:hidden;
-      min-height:11.5rem;
+      position:relative;border-radius:1.5rem;overflow:hidden;
+      min-height:13.5rem;
+      box-shadow:0 16px 40px -16px rgba(15,23,42,.35);
     }
-    .photo-hero img{width:100%;height:100%;object-fit:cover;min-height:11.5rem}
+    .photo-hero img{width:100%;height:100%;object-fit:cover;min-height:13.5rem;display:block}
     .photo-hero .veil{
       position:absolute;inset:0;
-      background:linear-gradient(to top,rgba(15,23,42,.72) 0%,rgba(15,23,42,.15) 45%,transparent 70%);
+      background:linear-gradient(180deg,rgba(15,23,42,.12) 0%,rgba(15,23,42,.05) 40%,rgba(15,23,42,.75) 100%);
+    }
+    /* Home: photo as ambient window behind floating cards */
+    #tab-home.pane.active{
+      position:relative!important;
+      display:flex!important;
+      flex-direction:column!important;
+      gap:0!important;
+      grid-template-columns:none!important;
+    }
+    #tab-home .home-stage{
+      position:relative;
+      border-radius:1.5rem;
+      overflow:hidden;
+      min-height:16rem;
+      margin-bottom:0.75rem;
+      box-shadow:0 20px 50px -20px rgba(15,23,42,.4);
+    }
+    #tab-home .home-stage-bg{
+      position:absolute;inset:0;
+      background-size:cover;background-position:center;
+      transform:scale(1.02);
+    }
+    #tab-home .home-stage-veil{
+      position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(15,23,42,.2) 0%,rgba(15,23,42,.08) 35%,rgba(15,23,42,.55) 100%);
+    }
+    #tab-home .home-stage-content{
+      position:relative;z-index:2;
+      display:flex;flex-direction:column;justify-content:flex-end;
+      min-height:16rem;padding:1.15rem 1.15rem 1rem;
+    }
+    #tab-home .home-float-stack{
+      display:flex;flex-direction:column;gap:0.75rem;
+      margin-top:-1.75rem;position:relative;z-index:3;
+      padding:0 0.15rem 0.25rem;
+    }
+    #tab-home .home-float-stack > *{
+      animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both;
+    }
+    #splash .splash-bg{
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      transform:scale(1.05);
+    }
+    #splash .splash-scrim{
+      position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(15,23,42,.35) 0%,rgba(15,23,42,.25) 40%,rgba(15,23,42,.72) 100%);
+    }
+    #splash.splash-out{
+      opacity:0;transition:opacity .6s ease;pointer-events:none;
     }
     .widget{animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both}
     .widget:nth-child(1){animation-delay:.02s}
@@ -151,16 +201,23 @@
 </head>
 <body class="bg-[var(--surface)] text-slate-800 dark:text-slate-100 min-h-full antialiased">
 
-<div id="splash" class="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden text-white" style="background:linear-gradient(145deg,var(--pet),var(--pet-dark))">
-  <div class="splash-orb w-64 h-64 bg-white top-[-10%] left-[-10%]"></div>
-  <div class="splash-orb w-48 h-48 bg-black/20 bottom-[-5%] right-[-5%]" style="animation-delay:1s"></div>
-  <div class="relative z-10 flex flex-col items-center">
-  <div class="w-20 h-20 rounded-[1.4rem] bg-white/15 backdrop-blur border border-white/25 flex items-center justify-center mb-5 shadow-lift">
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21c4-3.5 6-6.5 6-10a6 6 0 10-12 0c0 3.5 2 6.5 6 10z"/><circle cx="12" cy="11" r="2.2" fill="currentColor" stroke="none"/></svg>
-  </div>
-  <h1 class="text-2xl font-extrabold tracking-tight">PetPulse</h1>
-  <p class="text-white/70 text-sm mt-1 font-medium">2.0</p>
-  <div class="mt-8 w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+<div id="splash" class="fixed inset-0 z-[100] flex flex-col overflow-hidden text-white">
+  <img class="splash-bg" src="https://images.unsplash.com/photo-1558788353-f76d92427f16?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.display='none'">
+  <div class="splash-scrim"></div>
+  <div class="relative z-10 flex flex-col flex-1 px-8 pt-16 pb-12 max-w-md mx-auto w-full">
+    <div class="flex items-center gap-2.5">
+      <div class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21c4-3.5 6-6.5 6-10a6 6 0 10-12 0c0 3.5 2 6.5 6 10z"/><circle cx="12" cy="11" r="2.2" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <span class="text-xl font-extrabold tracking-tight">PetPulse</span>
+    </div>
+    <div class="flex-1"></div>
+    <h2 class="text-[1.65rem] leading-snug font-extrabold tracking-tight max-w-[16rem]">По-добър живот за тях.<br>По-спокоен ден за теб.</h2>
+    <p class="text-white/75 text-sm mt-3 font-medium max-w-[17rem]">Споделени грижи, здраве и дневник – на едно място.</p>
+    <div class="mt-8 flex items-center gap-3">
+      <div class="w-5 h-5 border-2 border-white/35 border-t-white rounded-full animate-spin"></div>
+      <span class="text-xs font-semibold text-white/70 tracking-wide">Зареждане…</span>
+    </div>
   </div>
 </div>
 

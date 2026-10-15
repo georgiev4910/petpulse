@@ -102,7 +102,8 @@ function sizeMinH(size) {
 })();
 
 function hideAllScreens() {
-  ['splash','auth-screen','profile-setup-screen','choice-screen','join-screen','newpet-screen','app','customize-screen'].forEach(id => {
+  // splash is handled separately (min display time + fade)
+  ['auth-screen','profile-setup-screen','choice-screen','join-screen','newpet-screen','app','customize-screen'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
 }
@@ -188,8 +189,19 @@ function getUserProfile() {
   };
 }
 
+const SPLASH_MIN_MS = 7000;
+const _splashStarted = Date.now();
+function hideSplashSmooth() {
+  const el = document.getElementById('splash');
+  if (!el || el.classList.contains('hidden')) return;
+  const left = Math.max(0, SPLASH_MIN_MS - (Date.now() - _splashStarted));
+  setTimeout(() => {
+    el.classList.add('splash-out');
+    setTimeout(() => el.classList.add('hidden'), 600);
+  }, left);
+}
+
 auth.onAuthStateChanged(async (user) => {
-  document.getElementById('splash')?.classList.add('hidden');
   if (user) {
     currentUser = user;
     widgetConfig = loadWidgets();
@@ -207,10 +219,12 @@ auth.onAuthStateChanged(async (user) => {
       }
     }
     await checkUserState();
+    hideSplashSmooth();
   } else {
     currentUser = null;
     hideAllScreens();
     document.getElementById('auth-screen').classList.remove('hidden');
+    hideSplashSmooth();
   }
 });
 
@@ -508,31 +522,32 @@ function renderWidget(id, size) {
       ? `<img src="${petData.photoURL}" class="w-full h-full object-cover rounded-2xl" alt="">`
       : emoji;
     const healthToday = (petData.health || []).filter(h => h.date === todayStr).length;
-    const photoBlock = petData.photoURL
-      ? `<img src="${petData.photoURL}" alt="">`
-      : `<div class="w-full min-h-[11.5rem] flex items-center justify-center text-5xl" style="background:linear-gradient(145deg,${theme},${themeDark})">${emoji}</div>`;
-    return `<div class="col-span-2 space-y-3">
-      <button type="button" onclick="switchTab('pets')" class="photo-hero w-full text-left shadow-soft">
-        ${photoBlock}
-        <div class="veil"></div>
-        <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
-          <div class="font-extrabold text-2xl tracking-tight">${petData.name || 'Любимец'}</div>
-          <div class="text-sm text-white/85 font-medium">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
+    const bg = petData.photoURL
+      ? `background-image:url('${petData.photoURL.replace(/'/g, '%27')}')`
+      : `background:linear-gradient(145deg,${theme},${themeDark})`;
+    return `<div class="home-stage" data-wid="hero">
+      <div class="home-stage-bg" style="${bg}"></div>
+      <div class="home-stage-veil"></div>
+      <div class="home-stage-content">
+        <button type="button" onclick="switchTab('pets')" class="text-left text-white w-full">
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] font-bold tracking-wide mb-2">Профил</div>
+          <div class="font-extrabold text-[1.75rem] tracking-tight leading-none drop-shadow-sm">${petData.name || 'Любимец'}</div>
+          <div class="text-sm text-white/90 font-medium mt-1.5 drop-shadow-sm">${petData.breed || ''}${age ? ' · ' + age : ''}${petData.weight ? ' · ' + petData.weight + ' кг' : ''}</div>
+        </button>
+        <div class="grid grid-cols-3 gap-2 mt-4">
+          <button type="button" onclick="openDayStats('meal')" class="rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md py-2.5 text-center shadow-lg border border-white/40">
+            <div class="text-base font-extrabold tracking-tight" style="color:${theme}">${mealsToday}</div>
+            <div class="text-[10px] font-semibold text-slate-500">Храна</div>
+          </button>
+          <button type="button" onclick="openDayStats('walk')" class="rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md py-2.5 text-center shadow-lg border border-white/40">
+            <div class="text-base font-extrabold tracking-tight text-sky-600">${walksToday}</div>
+            <div class="text-[10px] font-semibold text-slate-500">Разходки</div>
+          </button>
+          <button type="button" onclick="openDayStats('health')" class="rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md py-2.5 text-center shadow-lg border border-white/40">
+            <div class="text-base font-extrabold tracking-tight text-amber-600">${healthToday}</div>
+            <div class="text-[10px] font-semibold text-slate-500">Здраве</div>
+          </button>
         </div>
-      </button>
-      <div class="grid grid-cols-3 gap-2">
-        <button type="button" onclick="openDayStats('meal')" class="card-v2 py-3 text-center">
-          <div class="text-lg font-extrabold tracking-tight" style="color:${theme}">${mealsToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400">Храна</div>
-        </button>
-        <button type="button" onclick="openDayStats('walk')" class="card-v2 py-3 text-center">
-          <div class="text-lg font-extrabold tracking-tight text-sky-600">${walksToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400">Разходки</div>
-        </button>
-        <button type="button" onclick="openDayStats('health')" class="card-v2 py-3 text-center">
-          <div class="text-lg font-extrabold tracking-tight text-amber-600">${healthToday}</div>
-          <div class="text-[10px] font-semibold text-slate-400">Здраве</div>
-        </button>
       </div>
     </div>`;
   }
@@ -729,13 +744,22 @@ function renderHomeWidgets() {
   const host = document.getElementById('tab-home');
   if (!host) return;
   const active = widgetConfig.filter(w => w.on);
-  const html = active.map(w => {
+  const hero = active.find(w => w.id === 'hero');
+  const rest = active.filter(w => w.id !== 'hero');
+  let heroHtml = '';
+  if (hero) {
+    heroHtml = renderWidget('hero', hero.size) || '';
+  }
+  const stack = rest.map((w, i) => {
     const content = renderWidget(w.id, w.size);
     if (!content) return '';
-    return `<div class="widget ${sizeClass(w.size)} ${sizeMinH(w.size)}" data-wid="${w.id}">${content}</div>`;
+    return `<div class="widget" style="animation-delay:${0.06 + i * 0.04}s" data-wid="${w.id}">${content}</div>`;
   }).join('');
-  // Do not rewrite className here — switchTab owns active; CSS makes #tab-home a grid
-  host.innerHTML = html || `<p class="col-span-2 text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
+  if (!heroHtml && !stack) {
+    host.innerHTML = `<p class="text-sm text-slate-400 text-center py-12">Няма включени модули.<br><button onclick="openCustomize()" class="text-teal-600 font-semibold mt-2">Персонализирай екрана</button></p>`;
+    return;
+  }
+  host.innerHTML = `${heroHtml}<div class="home-float-stack">${stack}</div>`;
 }
 
 function renderApp() {
